@@ -1,11 +1,19 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
+import Leads from './pages/Leads';
+import Tasks from './pages/Tasks';
+import Suggestions from './pages/Suggestions';
+import Agenda from './pages/Agenda';
+import SettingsPage from './pages/SettingsPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +41,17 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<Navigate to="/Dashboard" replace />} />
+        <Route path="/Dashboard" element={<Dashboard />} />
+        <Route path="/Projects" element={<Projects />} />
+        <Route path="/ProjectDetail" element={<ProjectDetail />} />
+        <Route path="/Leads" element={<Leads />} />
+        <Route path="/Tasks" element={<Tasks />} />
+        <Route path="/Suggestions" element={<Suggestions />} />
+        <Route path="/Agenda" element={<Agenda />} />
+        <Route path="/SettingsPage" element={<SettingsPage />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
