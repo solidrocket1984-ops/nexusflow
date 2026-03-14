@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useTasks, useProjects, useLeads } from '../components/shared/useAppData';
 import TaskRow from '../components/tasks/TaskRow';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Calendar, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isTomorrow, isSameDay } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function Agenda() {
@@ -24,7 +23,6 @@ export default function Agenda() {
 
   const todayTasks = tasks.filter(t => !t.completed && t.due_date === todayStr);
   const tomorrowTasks = tasks.filter(t => !t.completed && t.due_date === tomorrowStr);
-  const calls = tasks.filter(t => !t.completed && (t.type === 'llamada' || t.type === 'reunion'));
 
   return (
     <div>
@@ -33,23 +31,11 @@ export default function Agenda() {
         <p className="text-sm text-slate-500 mt-1">Tu calendario de ejecución comercial</p>
       </div>
 
-      {/* Google Calendar notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-blue-900">Integración con Google Calendar</p>
-          <p className="text-xs text-blue-700 mt-0.5">
-            La sincronización con Google Calendar requiere el plan Builder+. Por ahora, tus tareas con fecha actúan como tu agenda.
-          </p>
-        </div>
-      </div>
-
       <Tabs defaultValue="hoy">
         <TabsList className="bg-slate-100 mb-4">
           <TabsTrigger value="hoy">Hoy ({todayTasks.length})</TabsTrigger>
           <TabsTrigger value="manana">Mañana ({tomorrowTasks.length})</TabsTrigger>
           <TabsTrigger value="semana">Semana</TabsTrigger>
-          <TabsTrigger value="llamadas">Llamadas/Reuniones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="hoy">
@@ -82,8 +68,8 @@ export default function Agenda() {
                     <span className="text-sm font-semibold text-slate-700 capitalize">
                       {format(day, "EEEE, d 'de' MMM", { locale: es })}
                     </span>
-                    {isToday(day) && <Badge className="bg-indigo-100 text-indigo-700 text-[10px]">Hoy</Badge>}
-                    {isTomorrow(day) && <Badge className="bg-amber-100 text-amber-700 text-[10px]">Mañana</Badge>}
+                    {isToday(day) && <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded">HOY</span>}
+                    {isTomorrow(day) && <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded">MAÑANA</span>}
                   </div>
                   {dayTasks.length === 0 ? (
                     <div className="px-4 py-3 text-xs text-slate-400">Sin tareas programadas</div>
@@ -95,15 +81,6 @@ export default function Agenda() {
                 </div>
               );
             })}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="llamadas">
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-            {calls.length === 0 && (
-              <div className="p-8 text-center text-slate-400">No hay llamadas o reuniones pendientes</div>
-            )}
-            {calls.map(t => <TaskRow key={t.id} task={t} leads={leads} projects={projects} />)}
           </div>
         </TabsContent>
       </Tabs>

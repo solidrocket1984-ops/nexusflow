@@ -30,7 +30,8 @@ export default function ExecutiveSummary({ leads, tasks, suggestions, projects }
           <p className="text-slate-400 text-sm font-medium mb-1">
             {format(new Date(), "EEEE, d 'de' MMMM", { locale: es })}
           </p>
-          <h2 className="text-2xl lg:text-3xl font-bold mb-4">Resumen ejecutivo</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold mb-2">Resumen ejecutivo</h2>
+          <p className="text-slate-400 text-sm mb-4">Tu día comercial en un vistazo</p>
           
           {projectAttention && projectAttention.score > 0 && (
             <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 rounded-xl px-4 py-2 mb-5">
