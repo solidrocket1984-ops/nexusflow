@@ -9,26 +9,45 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const file_url = body.file_url;
+    const debug = body.debug || false;
 
     const res = await fetch(file_url);
     const arrayBuffer = await res.arrayBuffer();
     const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: true });
 
-    // Find the sheet with the most rows that has 'Lead ID' column
     const sheetNames = workbook.SheetNames;
-    let rows = [];
+
+    if (debug) {
+      const info = sheetNames.map(name => {
+        const s = workbook.Sheets[name];
+        const r = XLSX.utils.sheet_to_json(s, { defval: null });
+        return {
+          name,
+          rows: r.length,
+          keys: Object.keys(r[0] || {}),
+          sample: r.slice(0, 2)
+        };
+      });
+      return Response.json({ sheets: info });
+    }
+
+    // Find the CRM Leads sheet - look for sheet named "CRM Leads" or the one with most rows + Lead ID
+    let targetSheet = null;
+    let targetRows = [];
+
     for (const name of sheetNames) {
       const s = workbook.Sheets[name];
       const r = XLSX.utils.sheet_to_json(s, { defval: null });
-      if (r.length > rows.length) {
+      if (r.length > targetRows.length) {
         const keys = Object.keys(r[0] || {});
         if (keys.some(k => String(k).trim() === 'Lead ID')) {
-          rows = r;
+          targetSheet = name;
+          targetRows = r;
         }
       }
     }
 
-    if (rows.length === 0) {
+    if (targetRows.length === 0) {
       return Response.json({ error: 'No CRM Leads sheet found', sheets: sheetNames });
     }
 
@@ -43,62 +62,61 @@ Deno.serve(async (req) => {
     const toNum = (val) => (val != null && val !== '' ? Number(val) : null);
     const toStr = (val) => (val != null && val !== '' ? String(val) : null);
 
-    const leads = rows
-      .map(row => {
-        // Try both exact and trimmed column names
-        const get = (key) => {
-          if (row[key] != null && row[key] !== '') return row[key];
-          const trimKey = Object.keys(row).find(k => k.trim() === key.trim());
-          return trimKey ? row[trimKey] : null;
-        };
+    const get = (row, key) => {
+      if (row[key] != null && row[key] !== '') return row[key];
+      const found = Object.keys(row).find(k => k.trim() === key.trim());
+      return found ? row[found] : null;
+    };
 
-        const name = get('Compte / Celler');
+    const leads = targetRows
+      .map(row => {
+        const name = get(row, 'Compte / Celler');
         if (!name) return null;
 
         return {
-          external_id: toStr(get('Lead ID')),
-          priority: toStr(get('Prioritat')),
+          external_id: toStr(get(row, 'Lead ID')),
+          priority: toStr(get(row, 'Prioritat')),
           company: toStr(name),
           name: toStr(name),
-          zone: toStr(get('Zona')),
-          municipality: toStr(get('Municipi')),
-          phone: toStr(get('Telèfon')),
-          email: toStr(get('Email')),
-          website: toStr(get('Web')),
-          owner: toStr(get('Responsable')),
-          responsible: toStr(get('Responsable')),
-          pipeline_status: toStr(get('Etapa')),
-          temperature: toStr(get('Temperatura')),
-          channel: toStr(get('Canal')),
-          last_contact: formatDate(get('Últim contacte')),
-          next_action: toStr(get('Pròxima acció')),
-          next_action_date: formatDate(get('Data pròxima acció')),
-          current_result: toStr(get('Resultat actual')),
-          key_objection: toStr(get('Objeció clau')),
-          recommended_response: toStr(get('Resposta recomanada')),
-          offer_angle: toStr(get('Oferta / angle')),
-          demo_date: formatDate(get('Data demo')),
-          proposal_date: formatDate(get('Data proposta')),
-          closing_date: formatDate(get('Data tancament')),
-          setup_fee: toNum(get('Setup €')),
-          monthly_fee: toNum(get('Quota mensual €')),
-          probability: toNum(get('Prob. %')),
-          weighted_value: toNum(get('Valor ponderat €')),
-          decision_maker: toStr(get('Decisor')),
-          lead_status: toStr(get('Estat lead')),
-          notes: toStr(get('Notes')),
-          source_url: toStr(get('Font / URL')),
-          last_activity: toStr(get('Última activitat')),
-          days_without_activity: toNum(get('Dies sense activitat')),
-          activities_count: toNum(get('Nº activitats')),
-          urgency: toStr(get('Urgència')),
-          best_next_action: toStr(get('Següent millor acció')),
-          quick_message: toStr(get('Missatge ràpid')),
-          annual_value: toNum(get('Valor anual €')),
-          forecast_90_days: toNum(get('Forecast 90 dies')),
-          days_until_next_action: toNum(get('Dies per pròxima acció')),
-          abandonment_flag: toStr(get('Semàfor abandonament')),
-          today_action: toStr(get("Acció d'avui")),
+          zone: toStr(get(row, 'Zona')),
+          municipality: toStr(get(row, 'Municipi')),
+          phone: toStr(get(row, 'Telèfon')),
+          email: toStr(get(row, 'Email')),
+          website: toStr(get(row, 'Web')),
+          owner: toStr(get(row, 'Responsable')),
+          responsible: toStr(get(row, 'Responsable')),
+          pipeline_status: toStr(get(row, 'Etapa')),
+          temperature: toStr(get(row, 'Temperatura')),
+          channel: toStr(get(row, 'Canal')),
+          last_contact: formatDate(get(row, 'Últim contacte')),
+          next_action: toStr(get(row, 'Pròxima acció')),
+          next_action_date: formatDate(get(row, 'Data pròxima acció')),
+          current_result: toStr(get(row, 'Resultat actual')),
+          key_objection: toStr(get(row, 'Objeció clau')),
+          recommended_response: toStr(get(row, 'Resposta recomanada')),
+          offer_angle: toStr(get(row, 'Oferta / angle')),
+          demo_date: formatDate(get(row, 'Data demo')),
+          proposal_date: formatDate(get(row, 'Data proposta')),
+          closing_date: formatDate(get(row, 'Data tancament')),
+          setup_fee: toNum(get(row, 'Setup €')),
+          monthly_fee: toNum(get(row, 'Quota mensual €')),
+          probability: toNum(get(row, 'Prob. %')),
+          weighted_value: toNum(get(row, 'Valor ponderat €')),
+          decision_maker: toStr(get(row, 'Decisor')),
+          lead_status: toStr(get(row, 'Estat lead')),
+          notes: toStr(get(row, 'Notes')),
+          source_url: toStr(get(row, 'Font / URL')),
+          last_activity: toStr(get(row, 'Última activitat')),
+          days_without_activity: toNum(get(row, 'Dies sense activitat')),
+          activities_count: toNum(get(row, 'Nº activitats')),
+          urgency: toStr(get(row, 'Urgència')),
+          best_next_action: toStr(get(row, 'Següent millor acció')),
+          quick_message: toStr(get(row, 'Missatge ràpid')),
+          annual_value: toNum(get(row, 'Valor anual €')),
+          forecast_90_days: toNum(get(row, 'Forecast 90 dies')),
+          days_until_next_action: toNum(get(row, 'Dies per pròxima acció')),
+          abandonment_flag: toStr(get(row, 'Semàfor abandonament')),
+          today_action: toStr(get(row, "Acció d'avui")),
           project: 'Enllaç Digital',
           project_id: '69b599c67e80030f60f34e93',
         };
@@ -113,7 +131,7 @@ Deno.serve(async (req) => {
       created += Math.min(batchSize, leads.length - i);
     }
 
-    return Response.json({ success: true, imported: leads.length, created });
+    return Response.json({ success: true, sheet: targetSheet, totalRows: targetRows.length, imported: leads.length, created });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
