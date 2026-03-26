@@ -133,21 +133,35 @@ Deno.serve(async (req) => {
       project: 'Enllaç Digital',
     }));
 
-    // Bulk create in batches of 20
-    const results = [];
+    // Load existing leads to do upsert by external_id
+    const existing = await base44.asServiceRole.entities.Lead.list('-created_date', 500);
+    const existingByExtId = {};
+    for (const l of existing) {
+      if (l.external_id) existingByExtId[l.external_id] = l.id;
+    }
+
+    let created = 0, updated = 0;
     for (let i = 0; i < leads.length; i += 20) {
       const batch = leads.slice(i, i + 20);
-      const created = await base44.asServiceRole.entities.Lead.bulkCreate(batch);
-      results.push(...(Array.isArray(created) ? created : [created]));
+      for (const lead of batch) {
+        if (lead.external_id && existingByExtId[lead.external_id]) {
+          await base44.asServiceRole.entities.Lead.update(existingByExtId[lead.external_id], lead);
+          updated++;
+        } else {
+          await base44.asServiceRole.entities.Lead.create(lead);
+          created++;
+        }
+      }
     }
 
     return Response.json({
       success: true,
       total: leads.length,
-      imported: results.length,
+      created,
+      updated,
       sheet: sheetName,
     });
-  } catch (error) {
-    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
-  }
-});
+    } catch (error) {
+      return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
+    }
+    });
