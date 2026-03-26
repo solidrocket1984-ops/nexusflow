@@ -19,9 +19,8 @@ const QUICK_FILTERS = [
 
 export default function Leads() {
   const { data: leads } = useLeads();
-  const { data: projects } = useProjects();
+  const { data: projects } = useProjects(); // kept for project badge display
   const [search, setSearch] = useState('');
-  const [projectFilter, setProjectFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [quickFilter, setQuickFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
@@ -29,9 +28,6 @@ export default function Leads() {
   const filtered = leads
     .filter(l => !l.is_archived || showArchived)
     .filter(l => {
-      const q = search.toLowerCase();
-      const matchSearch = !search || l.name?.toLowerCase().includes(q) || l.company?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q);
-      const matchProject = projectFilter === 'all' || l.project_id === projectFilter;
       const matchStatus = statusFilter === 'all' || l.pipeline_status === statusFilter;
       let matchQuick = true;
       if (quickFilter === 'overdue') matchQuick = isOverdue(l);
@@ -39,7 +35,7 @@ export default function Leads() {
       if (quickFilter === 'alta') matchQuick = l.priority === 'alta';
       if (quickFilter === 'inactive') matchQuick = (l.days_without_activity || 0) >= 14;
       if (quickFilter === 'proposal') matchQuick = l.proposal_status === 'sent' || l.pipeline_status === 'propuesta_enviada';
-      return matchSearch && matchProject && matchStatus && matchQuick;
+      return matchSearch && matchStatus && matchQuick;
     })
     .sort((a, b) => scoreLead(b) - scoreLead(a));
 
@@ -67,28 +63,21 @@ export default function Leads() {
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Buscar per nom, empresa o email..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="Projecte" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tots els projectes</SelectItem>
-              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="Estat" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tots els estats</SelectItem>
-              {Object.entries(pipelineLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input placeholder="Buscar per nom, empresa o email..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-      </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="Estat" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tots els estats</SelectItem>
+            {Object.entries(pipelineLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        </div>
+        </div>
 
-      {/* Results count */}
+        {/* Results count */}
       <p className="text-xs text-slate-400 mb-3 px-1">{filtered.length} resultats</p>
 
       {/* Lead list */}

@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, FolderKanban, CheckSquare, Lightbulb, Calendar, Settings, Menu, X, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, CheckSquare, Lightbulb, Calendar, Menu, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/Projects', icon: FolderKanban, label: 'Proyectos' },
   { path: '/Leads', icon: Users, label: 'Leads' },
-  { path: '/Tasks', icon: CheckSquare, label: 'Tareas' },
-  { path: '/Suggestions', icon: Lightbulb, label: 'Qué Hago Ahora' },
+  { path: '/Tasks', icon: CheckSquare, label: 'Tasques' },
+  { path: '/Suggestions', icon: Lightbulb, label: 'Que faig ara?' },
   { path: '/Agenda', icon: Calendar, label: 'Agenda' },
-  { path: '/SettingsPage', icon: Settings, label: 'Configuración' },
 ];
 
 export default function Layout() {
@@ -25,7 +23,7 @@ export default function Layout() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-slate-900 text-lg">CommandCenter</span>
+          <span className="font-semibold text-slate-900 text-lg">Enllaç Digital</span>
         </div>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg hover:bg-slate-100">
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -48,8 +46,8 @@ export default function Layout() {
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 text-base">CommandCenter</h1>
-            <p className="text-[11px] text-slate-400 font-medium tracking-wide">EJECUCIÓN COMERCIAL</p>
+            <h1 className="font-bold text-slate-900 text-base">Enllaç Digital</h1>
+            <p className="text-[11px] text-slate-400 font-medium tracking-wide">CRM COMERCIAL</p>
           </div>
         </div>
 
