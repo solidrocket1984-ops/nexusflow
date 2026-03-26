@@ -1,0 +1,103 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "lead_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "llamada",
+        "email",
+        "seguimiento",
+        "reunion",
+        "propuesta",
+        "admin",
+        "research",
+        "otro"
+      ],
+      "default": "otro"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "alta",
+        "media",
+        "baja"
+      ],
+      "default": "media"
+    },
+    "urgency": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "en_progreso",
+        "completada",
+        "cancelada"
+      ],
+      "default": "pendiente"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "automation",
+        "crm_rule"
+      ],
+      "default": "manual"
+    },
+    "recurrence": {
+      "type": "string",
+      "enum": [
+        "none",
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "default": "none"
+    },
+    "task_bucket": {
+      "type": "string",
+      "enum": [
+        "today",
+        "this_week",
+        "this_month",
+        "backlog"
+      ],
+      "default": "backlog"
+    },
+    "suggested_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "title",
+    "project_id"
+  ]
+}

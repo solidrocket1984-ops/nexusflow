@@ -1,0 +1,67 @@
+{
+  "name": "Proposal",
+  "type": "object",
+  "properties": {
+    "lead_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Commercial summary (long text)"
+    },
+    "problem": {
+      "type": "string",
+      "description": "Detected pain point (long text)"
+    },
+    "proposed_solution": {
+      "type": "string",
+      "description": "Proposed solution (long text)"
+    },
+    "offer_angle": {
+      "type": "string",
+      "description": "Offer angle (long text)"
+    },
+    "setup_fee": {
+      "type": "number"
+    },
+    "monthly_fee": {
+      "type": "number"
+    },
+    "annual_value": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "rejected"
+      ],
+      "default": "draft"
+    },
+    "sent_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "notes": {
+      "type": "string",
+      "description": "Internal notes (long text)"
+    }
+  },
+  "required": [
+    "lead_id",
+    "project_id",
+    "title"
+  ]
+}

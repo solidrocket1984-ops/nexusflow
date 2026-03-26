@@ -14,6 +14,7 @@ import Tasks from './pages/Tasks';
 import Suggestions from './pages/Suggestions';
 import Agenda from './pages/Agenda';
 import SettingsPage from './pages/SettingsPage';
+import LeadDetail from './pages/LeadDetail';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
         <Route path="/Suggestions" element={<Suggestions />} />
         <Route path="/Agenda" element={<Agenda />} />
         <Route path="/SettingsPage" element={<SettingsPage />} />
+        <Route path="/LeadDetail" element={<LeadDetail />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

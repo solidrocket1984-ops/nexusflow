@@ -1,0 +1,62 @@
+{
+  "name": "EmailDraft",
+  "type": "object",
+  "properties": {
+    "lead_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string",
+      "description": "Email body (long text)"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "professional",
+        "friendly",
+        "urgent",
+        "casual"
+      ],
+      "default": "professional"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready",
+        "sent"
+      ],
+      "default": "draft"
+    },
+    "template_type": {
+      "type": "string",
+      "enum": [
+        "cold_outreach",
+        "follow_up",
+        "reactivation",
+        "proposal_followup",
+        "meeting_confirmation",
+        "post_call",
+        "custom"
+      ],
+      "default": "follow_up"
+    },
+    "generated_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "lead_id",
+    "project_id"
+  ]
+}

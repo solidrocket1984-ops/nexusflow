@@ -6,6 +6,10 @@
       "type": "string",
       "description": "External ID"
     },
+    "duplicate_key": {
+      "type": "string",
+      "description": "Normalized key for dedup (email+phone+company)"
+    },
     "project": {
       "type": "string",
       "description": "Project name (text)"
@@ -49,6 +53,17 @@
       ],
       "default": "nuevo"
     },
+    "lifecycle_stage": {
+      "type": "string",
+      "enum": [
+        "lead",
+        "qualified",
+        "opportunity",
+        "customer",
+        "lost"
+      ],
+      "default": "lead"
+    },
     "lead_status": {
       "type": "string"
     },
@@ -73,8 +88,25 @@
     "phone": {
       "type": "string"
     },
+    "linkedin_url": {
+      "type": "string"
+    },
     "source": {
       "type": "string"
+    },
+    "source_system": {
+      "type": "string"
+    },
+    "contact_preference": {
+      "type": "string",
+      "enum": [
+        "email",
+        "phone",
+        "whatsapp",
+        "linkedin",
+        "any"
+      ],
+      "default": "any"
     },
     "last_message": {
       "type": "string",
@@ -91,6 +123,9 @@
     "next_action_date": {
       "type": "string",
       "format": "date"
+    },
+    "next_step_status": {
+      "type": "string"
     },
     "city": {
       "type": "string"
@@ -121,10 +156,22 @@
       "type": "string",
       "format": "date"
     },
+    "last_activity_date": {
+      "type": "string",
+      "format": "date"
+    },
     "last_interaction": {
       "type": "string",
       "format": "date-time",
       "description": "Last interaction datetime"
+    },
+    "last_email_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "last_call_date": {
+      "type": "string",
+      "format": "date"
     },
     "current_result": {
       "type": "string"
@@ -149,9 +196,38 @@
       "type": "string",
       "format": "date"
     },
+    "proposal_status": {
+      "type": "string",
+      "enum": [
+        "none",
+        "draft",
+        "sent",
+        "viewed",
+        "accepted",
+        "rejected"
+      ],
+      "default": "none"
+    },
+    "proposal_amount": {
+      "type": "number"
+    },
+    "expected_close_date": {
+      "type": "string",
+      "format": "date"
+    },
     "closing_date": {
       "type": "string",
       "format": "date"
+    },
+    "email_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "draft_ready",
+        "sent",
+        "replied"
+      ],
+      "default": "not_started"
     },
     "setup_fee": {
       "type": "number"
@@ -214,6 +290,13 @@
     "today_action": {
       "type": "string",
       "description": "Today action (long text)"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false
+    },
+    "archive_reason": {
+      "type": "string"
     }
   },
   "required": [
