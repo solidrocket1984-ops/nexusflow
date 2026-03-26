@@ -33,10 +33,12 @@ Deno.serve(async (req) => {
 
     const leads = rows
       .map(row => {
+        const leadId = toStr(row['ID Lead']);
+        // Skip rows without a valid Lead ID
+        if (!leadId || !leadId.startsWith('LEAD-')) return null;
         const company = toStr(row['Empresa']);
         const contactName = toStr(row['Contacto']);
-        const name = company || contactName;
-        if (!name) return null;
+        const name = company || contactName || leadId;
 
         // Map temperature
         const rawTemp = toStr(row['Temperatura']);
