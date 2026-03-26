@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProjects, useLeads } from '../components/shared/useAppData';
+import { useLeads } from '../components/shared/useAppData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -18,10 +18,8 @@ const typeIcons = {
 };
 
 export default function Suggestions() {
-  const { data: projects } = useProjects();
-  const { data: leads } = useLeads();
+  const { data: leads = [] } = useLeads();
   const queryClient = useQueryClient();
-  const [projectFilter, setProjectFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [dismissed, setDismissed] = useState({});
   const [done, setDone] = useState({});
@@ -31,9 +29,7 @@ export default function Suggestions() {
 
   const filtered = allSuggestions.filter(s => {
     if (dismissed[s.id] || done[s.id]) return false;
-    const matchProject = projectFilter === 'all' || s.project_id === projectFilter;
-    const matchPriority = priorityFilter === 'all' || s.priority === priorityFilter;
-    return matchProject && matchPriority;
+    return priorityFilter === 'all' || s.priority === priorityFilter;
   });
 
   const markDone = async (s) => {
@@ -59,13 +55,6 @@ export default function Suggestions() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <Select value={projectFilter} onValueChange={setProjectFilter}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Projecte" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tots</SelectItem>
-            {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
           <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Prioritat" /></SelectTrigger>
           <SelectContent>
@@ -85,16 +74,14 @@ export default function Suggestions() {
           </div>
         )}
         {filtered.map(s => {
-          const project = projects.find(p => p.id === s.project_id);
           const TypeIcon = typeIcons[s.type] || Lightbulb;
           const lead = s.lead;
 
           return (
             <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-4 lg:p-5 hover:shadow-md hover:shadow-slate-200/50 transition-all duration-200">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: project ? `${project.color}15` : '#f1f5f9' }}>
-                  <TypeIcon className="w-5 h-5" style={{ color: project?.color || '#64748b' }} />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-50">
+                  <TypeIcon className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
@@ -103,12 +90,7 @@ export default function Suggestions() {
                         {lead?.name || lead?.company}
                       </Link>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {project && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md"
-                            style={{ backgroundColor: `${project.color}15`, color: project.color }}>
-                            {project.name}
-                          </span>
-                        )}
+
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           s.priority === 'alta' ? 'bg-red-100 text-red-700' :
                           s.priority === 'media' ? 'bg-amber-100 text-amber-700' :
@@ -120,8 +102,7 @@ export default function Suggestions() {
                   </div>
                   <p className="text-sm text-slate-700 mt-1.5">{s.reason}</p>
                   <div className="flex items-center gap-2 mt-3">
-                    <Button size="sm" className="h-8 text-xs font-semibold"
-                      style={project ? { backgroundColor: project.color } : {}}
+                    <Button size="sm" className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700"
                       onClick={() => markDone(s)}>
                       <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
                       {s.cta}

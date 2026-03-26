@@ -1,32 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Flame, AlertTriangle, Clock, Phone, ArrowRight, CheckCircle, Calendar } from 'lucide-react';
+import { Flame, AlertTriangle, Clock, Phone, ArrowRight, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
+import { scoreLead, isActiveInPipeline, isOverdue } from '../../lib/crmUtils';
 
 const today = format(new Date(), 'yyyy-MM-dd');
-
-function scoreLead(lead) {
-  let score = 0;
-  // Overdue next action
-  if (lead.next_action_date && lead.next_action_date < today) score += 100;
-  // Due today
-  if (lead.next_action_date === today) score += 80;
-  // Hot temperature
-  if (lead.temperature === 'caliente') score += 60;
-  // High priority
-  if (lead.priority === 'alta') score += 40;
-  // Urgency field
-  if (lead.urgency === 'alta' || lead.urgency === 'urgente') score += 30;
-  // Long without activity
-  if (lead.days_without_activity > 14) score += 20;
-  if (lead.days_without_activity > 30) score += 20;
-  // Today action present
-  if (lead.today_action) score += 10;
-  return score;
-}
 
 function getIcon(lead) {
   if (lead.next_action_date && lead.next_action_date < today) return { Icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' };
@@ -45,13 +26,11 @@ function getReason(lead) {
   return 'Seguiment recomanat';
 }
 
-export default function WhatShouldIDo({ leads, projects }) {
+export default function WhatShouldIDo({ leads }) {
   const queryClient = useQueryClient();
   const [done, setDone] = useState({});
 
-  const activeLead = leads.filter(l =>
-    l.pipeline_status !== 'ganado' && l.pipeline_status !== 'perdido'
-  );
+  const activeLead = leads.filter(isActiveInPipeline);
 
   const sorted = [...activeLead]
     .sort((a, b) => scoreLead(b) - scoreLead(a))
@@ -87,8 +66,7 @@ export default function WhatShouldIDo({ leads, projects }) {
           if (done[lead.id]) return null;
           const { Icon, color, bg } = getIcon(lead);
           const reason = getReason(lead);
-          const project = projects.find(p => p.id === lead.project_id);
-          const isOverdue = lead.next_action_date && lead.next_action_date < today;
+          const overdue = isOverdue(lead);
 
           return (
             <div key={lead.id} className="p-4 flex items-start gap-3 hover:bg-slate-50/50 transition-colors">
@@ -98,24 +76,15 @@ export default function WhatShouldIDo({ leads, projects }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-slate-900">{lead.name || lead.company}</p>
-                  {project && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md"
-                      style={{ backgroundColor: `${project.color}15`, color: project.color }}>
-                      {project.name}
-                    </span>
-                  )}
-                  {lead.temperature === 'caliente' && (
-                    <span className="text-[10px] font-medium bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md">🔥 Calent</span>
-                  )}
                   {lead.priority === 'alta' && (
                     <span className="text-[10px] font-medium bg-red-100 text-red-700 px-2 py-0.5 rounded-md">Alta prioritat</span>
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">{reason}</p>
                 {lead.next_action_date && (
-                  <p className={`text-xs mt-1 font-medium ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+                  <p className={`text-xs mt-1 font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
                     <Clock className="w-3 h-3 inline mr-1" />
-                    {isOverdue ? 'Vençut: ' : 'Planificat: '}
+                    {overdue ? 'Vençut: ' : 'Planificat: '}
                     {format(new Date(lead.next_action_date), "d MMM", { locale: es })}
                   </p>
                 )}
@@ -132,7 +101,7 @@ export default function WhatShouldIDo({ leads, projects }) {
                   <CheckCircle className="w-4 h-4" />
                 </button>
                 <Link
-                  to={`/Leads?id=${lead.id}`}
+                  to={`/LeadDetail?id=${lead.id}`}
                   className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors"
                   title="Obrir lead"
                 >

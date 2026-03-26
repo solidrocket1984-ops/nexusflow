@@ -7,8 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
+
 import Leads from './pages/Leads';
 import Tasks from './pages/Tasks';
 import Suggestions from './pages/Suggestions';
@@ -45,8 +44,7 @@ const AuthenticatedApp = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/Dashboard" replace />} />
         <Route path="/Dashboard" element={<Dashboard />} />
-        <Route path="/Projects" element={<Projects />} />
-        <Route path="/ProjectDetail" element={<ProjectDetail />} />
+
         <Route path="/Leads" element={<Leads />} />
         <Route path="/Tasks" element={<Tasks />} />
         <Route path="/Suggestions" element={<Suggestions />} />

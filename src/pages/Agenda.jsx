@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTasks, useProjects, useLeads } from '../components/shared/useAppData';
+import { useTasks, useLeads } from '../components/shared/useAppData';
 import TaskRow from '../components/tasks/TaskRow';
 import { Calendar, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,8 @@ import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, is
 import { es } from 'date-fns/locale';
 
 export default function Agenda() {
-  const { data: tasks } = useTasks();
-  const { data: projects } = useProjects();
-  const { data: leads } = useLeads();
+  const { data: tasks = [] } = useTasks();
+  const { data: leads = [] } = useLeads();
   const [weekOffset, setWeekOffset] = useState(0);
 
   const today = new Date();
@@ -33,17 +32,17 @@ export default function Agenda() {
 
       <Tabs defaultValue="hoy">
         <TabsList className="bg-slate-100 mb-4">
-          <TabsTrigger value="hoy">Hoy ({todayTasks.length})</TabsTrigger>
-          <TabsTrigger value="manana">Mañana ({tomorrowTasks.length})</TabsTrigger>
-          <TabsTrigger value="semana">Semana</TabsTrigger>
+        <TabsTrigger value="hoy">Avui ({todayTasks.length})</TabsTrigger>
+        <TabsTrigger value="manana">Demà ({tomorrowTasks.length})</TabsTrigger>
+        <TabsTrigger value="semana">Setmana</TabsTrigger>
         </TabsList>
 
         <TabsContent value="hoy">
-          <DayView label={`Hoy, ${format(today, "d 'de' MMMM", { locale: es })}`} tasks={todayTasks} leads={leads} projects={projects} />
+          <DayView label={`Avui, ${format(today, "d 'de' MMMM", { locale: es })}`} tasks={todayTasks} leads={leads} />
         </TabsContent>
 
         <TabsContent value="manana">
-          <DayView label={`Mañana, ${format(addDays(today, 1), "d 'de' MMMM", { locale: es })}`} tasks={tomorrowTasks} leads={leads} projects={projects} />
+          <DayView label={`Demà, ${format(addDays(today, 1), "d 'de' MMMM", { locale: es })}`} tasks={tomorrowTasks} leads={leads} />
         </TabsContent>
 
         <TabsContent value="semana">
@@ -69,13 +68,13 @@ export default function Agenda() {
                       {format(day, "EEEE, d 'de' MMM", { locale: es })}
                     </span>
                     {isToday(day) && <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded">HOY</span>}
-                    {isTomorrow(day) && <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded">MAÑANA</span>}
+                    {isTomorrow(day) && <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded">DEMÀ</span>}
                   </div>
                   {dayTasks.length === 0 ? (
-                    <div className="px-4 py-3 text-xs text-slate-400">Sin tareas programadas</div>
+                    <div className="px-4 py-3 text-xs text-slate-400">Sense tasques programades</div>
                   ) : (
                     <div className="divide-y divide-slate-50">
-                      {dayTasks.map(t => <TaskRow key={t.id} task={t} leads={leads} projects={projects} />)}
+                      {dayTasks.map(t => <TaskRow key={t.id} task={t} leads={leads} projects={[]} />)}
                     </div>
                   )}
                 </div>
@@ -88,15 +87,15 @@ export default function Agenda() {
   );
 }
 
-function DayView({ label, tasks, leads, projects }) {
+function DayView({ label, tasks, leads }) {
   return (
     <div>
       <h3 className="text-sm font-semibold text-slate-700 mb-3">{label}</h3>
       <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
         {tasks.length === 0 && (
-          <div className="p-8 text-center text-slate-400">No hay tareas para este día</div>
+          <div className="p-8 text-center text-slate-400">Sense tasques per avui</div>
         )}
-        {tasks.map(t => <TaskRow key={t.id} task={t} leads={leads} projects={projects} />)}
+        {tasks.map(t => <TaskRow key={t.id} task={t} leads={leads} projects={[]} />)}
       </div>
     </div>
   );

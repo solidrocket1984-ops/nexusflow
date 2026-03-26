@@ -1,9 +1,10 @@
 import React from 'react';
-import { AlertTriangle, Phone, Clock, Flame, Users, Activity } from 'lucide-react';
+import { AlertTriangle, Phone, Clock, Flame, Users, Activity, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { pipelineLabels, isActiveInPipeline } from '../../lib/crmUtils';
 
-export default function ExecutiveSummary({ leads, tasks, suggestions, projects, allLeads }) {
+export default function ExecutiveSummary({ leads, tasks }) {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const totalLeads = leads.length;
@@ -13,28 +14,15 @@ export default function ExecutiveSummary({ leads, tasks, suggestions, projects, 
   const newLeads = leads.filter(l => l.pipeline_status === 'nuevo').length;
   const highPriority = leads.filter(l => l.priority === 'alta' && l.pipeline_status !== 'ganado' && l.pipeline_status !== 'perdido').length;
 
-  // Pipeline breakdown
-  const pipelineGroups = {
-    nuevo: leads.filter(l => l.pipeline_status === 'nuevo').length,
-    contactado: leads.filter(l => l.pipeline_status === 'contactado').length,
-    pendiente_respuesta: leads.filter(l => l.pipeline_status === 'pendiente_respuesta').length,
-    reunion_agendada: leads.filter(l => l.pipeline_status === 'reunion_agendada').length,
-    propuesta_enviada: leads.filter(l => l.pipeline_status === 'propuesta_enviada').length,
-    negociacion: leads.filter(l => l.pipeline_status === 'negociacion').length,
-    ganado: leads.filter(l => l.pipeline_status === 'ganado').length,
-    perdido: leads.filter(l => l.pipeline_status === 'perdido').length,
-  };
+  // Weighted pipeline
+  const activeLeads = leads.filter(isActiveInPipeline);
+  const weightedTotal = activeLeads.reduce((sum, l) => sum + ((l.weighted_value || l.monthly_fee * 12 || 0)), 0);
+  const proposalPending = leads.filter(l => l.proposal_status === 'sent').length;
+  const tasksDueToday = tasks.filter(t => !t.completed && t.due_date === today).length;
 
-  const pipelineLabels = {
-    nuevo: 'Nous',
-    contactado: 'Contactats',
-    pendiente_respuesta: 'Pend. resposta',
-    reunion_agendada: 'Reunió',
-    propuesta_enviada: 'Proposta',
-    negociacion: 'Negociació',
-    ganado: 'Guanyats',
-    perdido: 'Perduts',
-  };
+  // Pipeline breakdown
+  const pipelineStages = ['nuevo','contactado','pendiente_respuesta','reunion_agendada','propuesta_enviada','negociacion','ganado','perdido'];
+  const pipelineGroups = Object.fromEntries(pipelineStages.map(k => [k, leads.filter(l => l.pipeline_status === k).length]));
 
   const pipelineColors = {
     nuevo: 'bg-slate-400',
@@ -70,24 +58,27 @@ export default function ExecutiveSummary({ leads, tasks, suggestions, projects, 
             </div>
           </div>
 
-          {/* Pipeline by project */}
-          <div className="lg:w-72 bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Leads per projecte</h3>
-            {projects.map(p => {
-              const count = allLeads.filter(l => l.project_id === p.id).length;
-              const pct = allLeads.length > 0 ? Math.round((count / allLeads.length) * 100) : 0;
-              return (
-                <div key={p.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-slate-300">{p.name}</span>
-                    <span className="text-xs font-bold text-white">{count}</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: p.color }} />
-                  </div>
-                </div>
-              );
-            })}
+          {/* Pipeline financier */}
+          <div className="lg:w-72 bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-1">Estat comercial</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">Pipeline ponderat</span>
+                <span className="text-sm font-bold text-emerald-400">{weightedTotal > 0 ? `${weightedTotal.toLocaleString('ca')} €` : '—'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">Leads actius</span>
+                <span className="text-sm font-bold text-white">{activeLeads.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">Propostes enviades</span>
+                <span className="text-sm font-bold text-indigo-300">{proposalPending}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">Tasques avui</span>
+                <span className="text-sm font-bold text-amber-300">{tasksDueToday}</span>
+              </div>
+            </div>
           </div>
         </div>
 
