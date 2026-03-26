@@ -6,12 +6,14 @@ const ENLAC_PROJECT_ID = 'enlac_digital';
 function parseDate(val) {
   if (!val) return null;
   if (typeof val === 'number') {
-    // Excel serial date
-    const date = XLSX.SSF.parse_date_code(val);
-    if (!date) return null;
-    const m = String(date.m).padStart(2, '0');
-    const d = String(date.d).padStart(2, '0');
-    return `${date.y}-${m}-${d}`;
+    // Excel serial date to JS date (days since 1899-12-30)
+    const msPerDay = 86400000;
+    const excelEpoch = new Date(1899, 11, 30).getTime();
+    const jsDate = new Date(excelEpoch + val * msPerDay);
+    const y = jsDate.getFullYear();
+    const m = String(jsDate.getMonth() + 1).padStart(2, '0');
+    const d = String(jsDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
   if (typeof val === 'string') {
     const match = val.match(/^(\d{4}-\d{2}-\d{2})/);
