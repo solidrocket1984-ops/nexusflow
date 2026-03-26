@@ -28,6 +28,7 @@ export default function Leads() {
   const filtered = leads
     .filter(l => !l.is_archived || showArchived)
     .filter(l => {
+      const matchSearch = !search || [l.name, l.company, l.email, l.phone].some(f => f && f.toLowerCase().includes(search.toLowerCase()));
       const matchStatus = statusFilter === 'all' || l.pipeline_status === statusFilter;
       let matchQuick = true;
       if (quickFilter === 'overdue') matchQuick = isOverdue(l);
