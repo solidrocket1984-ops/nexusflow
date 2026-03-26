@@ -1,0 +1,223 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "external_id": {
+      "type": "string",
+      "description": "External ID"
+    },
+    "project": {
+      "type": "string",
+      "description": "Project name (text)"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Related project ID (internal)"
+    },
+    "company": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string",
+      "description": "Contact name (alias of name)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Contact name"
+    },
+    "channel": {
+      "type": "string"
+    },
+    "niche": {
+      "type": "string"
+    },
+    "pain_point": {
+      "type": "string",
+      "description": "Pain point (long text)"
+    },
+    "pipeline_status": {
+      "type": "string",
+      "enum": [
+        "nuevo",
+        "contactado",
+        "pendiente_respuesta",
+        "reunion_agendada",
+        "propuesta_enviada",
+        "negociacion",
+        "ganado",
+        "perdido"
+      ],
+      "default": "nuevo"
+    },
+    "lead_status": {
+      "type": "string"
+    },
+    "temperature": {
+      "type": "string",
+      "enum": [
+        "frio",
+        "templado",
+        "caliente"
+      ],
+      "default": "frio"
+    },
+    "website": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "last_message": {
+      "type": "string",
+      "description": "Last message (long text)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Message (long text)"
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Next action (long text)"
+    },
+    "next_action_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "city": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "alta",
+        "media",
+        "baja"
+      ],
+      "default": "media"
+    },
+    "zone": {
+      "type": "string"
+    },
+    "municipality": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "responsible": {
+      "type": "string",
+      "description": "Responsible (alias of owner)"
+    },
+    "last_contact": {
+      "type": "string",
+      "format": "date"
+    },
+    "last_interaction": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last interaction datetime"
+    },
+    "current_result": {
+      "type": "string"
+    },
+    "key_objection": {
+      "type": "string",
+      "description": "Key objection (long text)"
+    },
+    "recommended_response": {
+      "type": "string",
+      "description": "Recommended response (long text)"
+    },
+    "offer_angle": {
+      "type": "string",
+      "description": "Offer angle (long text)"
+    },
+    "demo_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "proposal_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "closing_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "setup_fee": {
+      "type": "number"
+    },
+    "monthly_fee": {
+      "type": "number"
+    },
+    "probability": {
+      "type": "number"
+    },
+    "weighted_value": {
+      "type": "number"
+    },
+    "decision_maker": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes (long text)"
+    },
+    "origin": {
+      "type": "string",
+      "description": "Lead origin"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "last_activity": {
+      "type": "string"
+    },
+    "days_without_activity": {
+      "type": "number"
+    },
+    "activities_count": {
+      "type": "number"
+    },
+    "urgency": {
+      "type": "string"
+    },
+    "best_next_action": {
+      "type": "string",
+      "description": "Best next action (long text)"
+    },
+    "quick_message": {
+      "type": "string",
+      "description": "Quick message (long text)"
+    },
+    "annual_value": {
+      "type": "number"
+    },
+    "forecast_90_days": {
+      "type": "number"
+    },
+    "days_until_next_action": {
+      "type": "number"
+    },
+    "abandonment_flag": {
+      "type": "string"
+    },
+    "today_action": {
+      "type": "string",
+      "description": "Today action (long text)"
+    }
+  },
+  "required": [
+    "name",
+    "project_id"
+  ]
+}
