@@ -117,7 +117,7 @@ export default function Leads() {
           <FilterSelect value={filters.temperature} onValueChange={(v) => setFilters((p) => ({ ...p, temperature: v }))} label="Temperatura" options={[['all', 'Totes'], ['frio', 'Fred'], ['templado', 'Temperat'], ['caliente', 'Calent']]} />
           <FilterSelect value={filters.priority} onValueChange={(v) => setFilters((p) => ({ ...p, priority: v }))} label="Prioritat" options={[['all', 'Totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
           <FilterSelect value={filters.urgency} onValueChange={(v) => setFilters((p) => ({ ...p, urgency: v }))} label="Urgència" options={[['all', 'Totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
-          <FilterSelect value={filters.proposal_status} onValueChange={(v) => setFilters((p) => ({ ...p, proposal_status: v }))} label="Proposta" options={[['all', 'Totes'], ['none', 'Cap'], ['draft', 'Esborrany'], ['sent', 'Enviada'], ['accepted', 'Acceptada'], ['rejected', 'Rebutjada']]} />
+          <FilterSelect value={filters.proposal_status} onValueChange={(v) => setFilters((p) => ({ ...p, proposal_status: v }))} label="Proposta" options={[['all', 'Totes'], ['none', 'Cap'], ['draft', 'Esborrany'], ['ready', 'Preparada'], ['sent', 'Enviada'], ['accepted', 'Acceptada'], ['rejected', 'Rebutjada']]} />
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">

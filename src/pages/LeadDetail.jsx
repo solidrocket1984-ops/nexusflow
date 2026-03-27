@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Mail, Phone, Globe, Plus, CheckCircle, Archive, FileText } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, Plus, CheckCircle, Archive, FileText, Eye, Pencil } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { pipelineColors, pipelineLabels, priorityColors, temperatureColors, normalizeLead } from '../lib/crmUtils';
+import { PROPOSAL_STATUS_LABELS } from '@/lib/proposalUtils';
 import EmailDraftModal from '../components/leads/EmailDraftModal';
 import ProposalModal from '../components/leads/ProposalModal';
 import LogActivityModal from '../components/leads/LogActivityModal';
@@ -27,6 +28,7 @@ export default function LeadDetail() {
   const [proposals, setProposals] = useState([]);
   const [showEmail, setShowEmail] = useState(false);
   const [showProposal, setShowProposal] = useState(false);
+  const [editingProposal, setEditingProposal] = useState(null);
   const [showActivity, setShowActivity] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -51,10 +53,10 @@ export default function LeadDetail() {
   useEffect(() => { load(); }, [leadId]);
 
   const stickyActions = useMemo(() => ([
-    { label: 'Log call', onClick: () => setShowActivity(true) },
+    { label: 'Registrar activitat', onClick: () => setShowActivity(true) },
     { label: 'Email', onClick: () => setShowEmail(true) },
-    { label: 'Proposta', onClick: () => setShowProposal(true) },
-    { label: 'Editar', onClick: () => setShowEdit(true) },
+    { label: 'Crear proposta', onClick: () => { setEditingProposal(null); setShowProposal(true); } },
+    { label: 'Editar lead', onClick: () => setShowEdit(true) },
   ]), []);
 
   const updateLead = async (payload) => {
@@ -96,24 +98,35 @@ export default function LeadDetail() {
   const updateProposalStatus = async (proposal, status) => {
     const date = format(new Date(), 'yyyy-MM-dd');
     const proposalPayload = { status };
-    const leadPayload = {};
+    const leadPayload = { proposal_status: status };
 
+    if (status === 'ready') {
+      leadPayload.proposal_date = lead.proposal_date || date;
+    }
     if (status === 'sent') {
       proposalPayload.sent_date = proposal.sent_date || date;
-      leadPayload.proposal_status = 'sent';
       leadPayload.proposal_date = lead.proposal_date || date;
-      await base44.entities.Task.create({ title: `Follow-up proposta: ${proposal.title}`, lead_id: lead.id, project_id: lead.project_id, due_date: format(new Date(Date.now() + 3 * 86400000), 'yyyy-MM-dd'), type: 'propuesta', priority: 'alta', source: 'crm_rule', completed: false });
+      leadPayload.pipeline_status = 'propuesta_enviada';
+      await base44.entities.Task.create({
+        title: `Follow-up proposta: ${proposal.title}`,
+        lead_id: lead.id,
+        project_id: lead.project_id,
+        due_date: format(new Date(Date.now() + 5 * 86400000), 'yyyy-MM-dd'),
+        type: 'propuesta',
+        priority: 'alta',
+        source: 'crm_rule',
+        completed: false,
+      });
     }
-    if (status === 'accepted') Object.assign(leadPayload, { proposal_status: 'accepted', lifecycle_stage: 'customer', pipeline_status: 'ganado', lead_status: 'won' });
+    if (status === 'accepted') Object.assign(leadPayload, { lifecycle_stage: 'customer', pipeline_status: 'ganado', lead_status: 'won' });
     if (status === 'rejected') {
       const note = window.prompt('Nota de rebuig (opcional):') || 'Proposta rebutjada';
-      leadPayload.proposal_status = 'rejected';
       proposalPayload.notes = [proposal.notes, note].filter(Boolean).join('\n');
     }
 
     await base44.entities.Proposal.update(proposal.id, proposalPayload);
-    if (Object.keys(leadPayload).length > 0) await updateLead(leadPayload);
-    await base44.entities.Activity.create({ lead_id: lead.id, type: 'proposal', subject: `Proposta ${status}`, summary: proposal.title, activity_date: new Date().toISOString(), auto_generated: true });
+    await updateLead(leadPayload);
+    await base44.entities.Activity.create({ lead_id: lead.id, type: 'proposal', subject: `Proposta ${PROPOSAL_STATUS_LABELS[status]?.toLowerCase() || status}`, summary: proposal.title, activity_date: new Date().toISOString(), auto_generated: true });
     load();
   };
 
@@ -150,7 +163,7 @@ export default function LeadDetail() {
         <span className="text-xs font-semibold px-2 py-1 rounded-full text-white" style={{ backgroundColor: pipelineColors[lead.pipeline_status] || '#64748b' }}>{pipelineLabels[lead.pipeline_status] || lead.pipeline_status}</span>
         <span className={`text-xs px-2 py-1 rounded-full ${temp.bg} ${temp.text}`}>{temp.label}</span>
         <span className={`text-xs px-2 py-1 rounded-full ${priority.bg} ${priority.text}`}>{priority.label}</span>
-        {lead.next_action_date && <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">Pròxim pas: {lead.next_action_date}</span>}
+        {lead.proposal_status && lead.proposal_status !== 'none' && <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">Proposta: {PROPOSAL_STATUS_LABELS[lead.proposal_status] || lead.proposal_status}</span>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -163,9 +176,9 @@ export default function LeadDetail() {
         <TabsList className="bg-slate-100 flex-wrap h-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="tasks">Tasques</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="proposals">Proposals</TabsTrigger>
+          <TabsTrigger value="proposals">Propostes</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
@@ -174,15 +187,11 @@ export default function LeadDetail() {
             <Field label="Pipeline stage" value={lead.pipeline_status} />
             <Field label="Lead status" value={lead.lead_status} />
             <Field label="Lifecycle" value={lead.lifecycle_stage} />
-            <Field label="Priority / urgency" value={`${lead.priority} / ${lead.urgency || '-'}`} />
-            <Field label="Next action" value={lead.next_action || '-'} />
-            <Field label="Next action date" value={lead.next_action_date || '-'} />
-            <Field label="Current result" value={lead.current_result || '-'} />
+            <Field label="Proposal status" value={lead.proposal_status || 'none'} />
+            <Field label="Proposal date" value={lead.proposal_date || '-'} />
             <Field label="Key objection" value={lead.key_objection || '-'} />
             <Field label="Recommended response" value={lead.recommended_response || '-'} />
             <Field label="Offer angle" value={lead.offer_angle || '-'} />
-            <Field label="Annual / weighted" value={`€${lead.annual_value || 0} / €${lead.weighted_value || 0}`} />
-            <Field label="Proposal status" value={lead.proposal_status || 'none'} />
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4">
             <p className="text-xs text-slate-500 uppercase">Notes</p>
@@ -191,7 +200,7 @@ export default function LeadDetail() {
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-2 pt-3">
-          <Button size="sm" onClick={() => setShowActivity(true)}><Plus className="w-4 h-4 mr-1" />Log activity</Button>
+          <Button size="sm" onClick={() => setShowActivity(true)}><Plus className="w-4 h-4 mr-1" />Registrar activitat</Button>
           {activities.map((activity) => <ActivityCard key={activity.id} item={activity} />)}
           {activities.length === 0 && <Empty text="Encara no hi ha activitat." />}
         </TabsContent>
@@ -220,22 +229,21 @@ export default function LeadDetail() {
         </TabsContent>
 
         <TabsContent value="proposals" className="space-y-2 pt-3">
-          <Button size="sm" onClick={() => setShowProposal(true)}><FileText className="w-4 h-4 mr-1" />Generar proposta</Button>
+          <Button size="sm" onClick={() => { setEditingProposal(null); setShowProposal(true); }}><FileText className="w-4 h-4 mr-1" />Crear proposta</Button>
           {proposals.map((proposal) => (
             <div key={proposal.id} className="bg-white border border-slate-200 rounded-xl p-3">
               <div className="flex justify-between">
                 <p className="text-sm font-semibold text-slate-900">{proposal.title}</p>
-                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{proposal.status}</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{PROPOSAL_STATUS_LABELS[proposal.status] || proposal.status}</span>
               </div>
-              <p className="text-xs text-slate-600 mt-1">{proposal.summary}</p>
+              <p className="text-xs text-slate-600 mt-1">{proposal.summary || proposal.plantejament}</p>
               <div className="flex gap-2 mt-2 flex-wrap">
-                {proposal.status !== 'sent' && <button onClick={() => updateProposalStatus(proposal, 'sent')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar enviada</button>}
-                {proposal.status !== 'accepted' && <button onClick={() => updateProposalStatus(proposal, 'accepted')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Acceptada</button>}
-                {proposal.status !== 'rejected' && <button onClick={() => updateProposalStatus(proposal, 'rejected')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Rebutjada</button>}
-                <button onClick={async () => {
-                  await base44.entities.Proposal.create({ ...proposal, id: undefined, version: Number(proposal.version || 1) + 1, status: 'draft' });
-                  load();
-                }} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Duplicar</button>
+                <button onClick={() => { setEditingProposal(proposal); setShowProposal(true); }} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50 inline-flex items-center"><Pencil className="w-3 h-3 mr-1" />Editar</button>
+                <button onClick={() => { setEditingProposal(proposal); setShowProposal(true); }} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50 inline-flex items-center"><Eye className="w-3 h-3 mr-1" />Vista prèvia</button>
+                {proposal.status !== 'ready' && <button onClick={() => updateProposalStatus(proposal, 'ready')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar com preparada</button>}
+                {proposal.status !== 'sent' && <button onClick={() => updateProposalStatus(proposal, 'sent')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar com enviada</button>}
+                {proposal.status !== 'accepted' && <button onClick={() => updateProposalStatus(proposal, 'accepted')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar com acceptada</button>}
+                {proposal.status !== 'rejected' && <button onClick={() => updateProposalStatus(proposal, 'rejected')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar com rebutjada</button>}
               </div>
             </div>
           ))}
@@ -257,7 +265,7 @@ export default function LeadDetail() {
       </div>
 
       {showEmail && <EmailDraftModal lead={lead} onClose={() => { setShowEmail(false); load(); }} />}
-      {showProposal && <ProposalModal lead={lead} onClose={() => { setShowProposal(false); load(); }} />}
+      {showProposal && <ProposalModal lead={lead} proposal={editingProposal} onClose={() => { setShowProposal(false); setEditingProposal(null); load(); }} />}
       {showActivity && <LogActivityModal lead={lead} onClose={() => { setShowActivity(false); load(); }} />}
       {showEdit && <EditLeadModal lead={lead} onClose={() => { setShowEdit(false); load(); }} />}
     </div>

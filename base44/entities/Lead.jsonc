@@ -201,6 +201,7 @@
       "enum": [
         "none",
         "draft",
+        "ready",
         "sent",
         "viewed",
         "accepted",
