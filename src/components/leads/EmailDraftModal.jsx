@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const TEMPLATES = [
-  ['cold_outreach', 'Cold outreach'],
-  ['follow_up', 'Follow-up'],
+  ['cold_outreach', 'Captació en fred'],
+  ['follow_up', 'Seguiment'],
   ['reactivation', 'Reactivació'],
-  ['proposal_followup', 'Follow-up proposta'],
+  ['proposal_followup', 'Seguiment de proposta'],
   ['meeting_confirmation', 'Confirmació reunió'],
-  ['post_call', 'Post-call recap'],
-  ['custom', 'Custom'],
+  ['post_call', 'Resum post-trucada'],
+  ['custom', 'Personalitzat'],
 ];
 
 export default function EmailDraftModal({ lead, onClose }) {
@@ -43,12 +43,12 @@ export default function EmailDraftModal({ lead, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between"><h2 className="font-bold">Email draft</h2><button onClick={onClose}><X className="w-4 h-4" /></button></div>
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between"><h2 className="font-bold">Esborrany de correu</h2><button onClick={onClose}><X className="w-4 h-4" /></button></div>
         <div className="p-4 space-y-3">
           <Select value={template} onValueChange={setTemplate}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{TEMPLATES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select>
-          {!draft ? <Button className="w-full" onClick={generate} disabled={generating}>{generating ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Generant...</> : 'Generar i guardar draft'}</Button> : (
+          {!draft ? <Button className="w-full" onClick={generate} disabled={generating}>{generating ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Generant...</> : 'Generar i guardar esborrany'}</Button> : (
             <div className="space-y-2">
-              <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Assumpte</p><p className="text-sm font-semibold">{draft.subject}</p><p className="text-xs text-slate-500 mt-2">Body</p><p className="text-sm whitespace-pre-wrap">{draft.body}</p></div>
+              <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">Assumpte</p><p className="text-sm font-semibold">{draft.subject}</p><p className="text-xs text-slate-500 mt-2">Cos</p><p className="text-sm whitespace-pre-wrap">{draft.body}</p></div>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => navigator.clipboard.writeText(`${draft.subject}\n\n${draft.body}`)}><Copy className="w-4 h-4 mr-1" />Copiar</Button>
                 <Button variant="outline" onClick={generate} disabled={generating}>Regenerar</Button>

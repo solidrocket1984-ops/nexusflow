@@ -38,7 +38,7 @@ export default function SettingsPage() {
       <section className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-indigo-600" />
-          <h2 className="text-sm font-semibold text-slate-900">Source of truth</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Font única de dades</h2>
         </div>
         <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1">
           <li>Negoci únic: <strong>Enllaç Digital</strong>.</li>
@@ -67,7 +67,7 @@ export default function SettingsPage() {
       <section className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-slate-700" />
-          <h2 className="text-sm font-semibold text-slate-900">Safeguards de duplicats</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Controls de duplicats</h2>
         </div>
         <p className="text-xs text-slate-500">El CRM genera i utilitza <code>duplicate_key</code> per revisar possibles duplicats, sense auto-eliminar registres.</p>
       </section>

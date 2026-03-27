@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Mail, Phone, Globe, Plus, CheckCircle, Archive, FileText } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, Plus, CheckCircle, Archive, FileText, Trash2, Pencil } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,8 @@ import EmailDraftModal from '../components/leads/EmailDraftModal';
 import ProposalModal from '../components/leads/ProposalModal';
 import LogActivityModal from '../components/leads/LogActivityModal';
 import EditLeadModal from '../components/leads/EditLeadModal';
+import TaskEditorModal from '../components/tasks/TaskEditorModal';
+import ScoreExplanation from '../components/shared/ScoreExplanation';
 
 export default function LeadDetail() {
   const queryClient = useQueryClient();
@@ -29,6 +31,7 @@ export default function LeadDetail() {
   const [showProposal, setShowProposal] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   const load = async () => {
     if (!leadId) return;
@@ -51,11 +54,12 @@ export default function LeadDetail() {
   useEffect(() => { load(); }, [leadId]);
 
   const stickyActions = useMemo(() => ([
-    { label: 'Log call', onClick: () => setShowActivity(true) },
-    { label: 'Email', onClick: () => setShowEmail(true) },
-    { label: 'Proposta', onClick: () => setShowProposal(true) },
-    { label: 'Editar', onClick: () => setShowEdit(true) },
-  ]), []);
+    { label: 'Crear activitat', onClick: () => setShowActivity(true) },
+    { label: 'Generar correu', onClick: () => setShowEmail(true) },
+    { label: 'Crear proposta', onClick: () => setShowProposal(true) },
+    { label: 'Edició completa', onClick: () => setShowEdit(true) },
+    { label: 'Crear tasca', onClick: () => setEditingTask({ lead_id: leadId }) },
+  ]), [leadId]);
 
   const updateLead = async (payload) => {
     await base44.entities.Lead.update(lead.id, payload);
@@ -63,63 +67,43 @@ export default function LeadDetail() {
     load();
   };
 
-  const createActivity = async (subject, summary) => {
-    await base44.entities.Activity.create({
-      lead_id: lead.id,
-      type: 'stage_change',
-      subject,
-      summary,
-      activity_date: new Date().toISOString(),
-      auto_generated: true,
-    });
-  };
-
   const markWon = async () => {
     await updateLead({ pipeline_status: 'ganado', lifecycle_stage: 'customer', lead_status: 'won', closing_date: format(new Date(), 'yyyy-MM-dd') });
-    await createActivity('Lead marcat com guanyat', 'Canvi d\'estat comercial a guanyat.');
   };
 
   const markLost = async () => {
-    const reason = window.prompt('Motiu de pèrdua (opcional):');
     await updateLead({ pipeline_status: 'perdido', lifecycle_stage: 'lost', lead_status: 'lost' });
-    await createActivity('Lead marcat com perdut', reason || 'Sense motiu especificat');
-  };
-
-  const markEmailSent = async (email) => {
-    const date = format(new Date(), 'yyyy-MM-dd');
-    await base44.entities.EmailDraft.update(email.id, { status: 'sent' });
-    await updateLead({ last_email_date: date, last_activity_date: date, email_status: 'sent', last_contact: date });
-    await base44.entities.Activity.create({ lead_id: lead.id, type: 'email', subject: `Email enviat: ${email.subject}`, summary: 'Email marcat com enviat', activity_date: new Date().toISOString(), auto_generated: true });
-    load();
-  };
-
-  const updateProposalStatus = async (proposal, status) => {
-    const date = format(new Date(), 'yyyy-MM-dd');
-    const proposalPayload = { status };
-    const leadPayload = {};
-
-    if (status === 'sent') {
-      proposalPayload.sent_date = proposal.sent_date || date;
-      leadPayload.proposal_status = 'sent';
-      leadPayload.proposal_date = lead.proposal_date || date;
-      await base44.entities.Task.create({ title: `Follow-up proposta: ${proposal.title}`, lead_id: lead.id, project_id: lead.project_id, due_date: format(new Date(Date.now() + 3 * 86400000), 'yyyy-MM-dd'), type: 'propuesta', priority: 'alta', source: 'crm_rule', completed: false });
-    }
-    if (status === 'accepted') Object.assign(leadPayload, { proposal_status: 'accepted', lifecycle_stage: 'customer', pipeline_status: 'ganado', lead_status: 'won' });
-    if (status === 'rejected') {
-      const note = window.prompt('Nota de rebuig (opcional):') || 'Proposta rebutjada';
-      leadPayload.proposal_status = 'rejected';
-      proposalPayload.notes = [proposal.notes, note].filter(Boolean).join('\n');
-    }
-
-    await base44.entities.Proposal.update(proposal.id, proposalPayload);
-    if (Object.keys(leadPayload).length > 0) await updateLead(leadPayload);
-    await base44.entities.Activity.create({ lead_id: lead.id, type: 'proposal', subject: `Proposta ${status}`, summary: proposal.title, activity_date: new Date().toISOString(), auto_generated: true });
-    load();
   };
 
   const archiveLead = async () => {
+    if (!window.confirm('Vols arxivar aquest lead?')) return;
     await updateLead({ is_archived: true, archive_reason: 'manual_archive' });
-    await createActivity('Lead arxivat', 'Arxiu manual des de fitxa de lead');
+  };
+
+  const deleteActivity = async (activity) => {
+    if (!window.confirm('Vols eliminar aquesta activitat?')) return;
+    await base44.entities.Activity.delete(activity.id);
+    load();
+  };
+
+  const editActivity = async (activity) => {
+    const summary = window.prompt('Editar resum de l’activitat', activity.summary || '');
+    if (summary == null) return;
+    await base44.entities.Activity.update(activity.id, { summary });
+    load();
+  };
+
+  const saveTask = async (payload) => {
+    if (editingTask?.id) await base44.entities.Task.update(editingTask.id, payload);
+    else await base44.entities.Task.create({ ...payload, lead_id: lead.id, source: payload.source || 'manual', project_id: lead.project_id });
+    setEditingTask(null);
+    load();
+  };
+
+  const deleteTask = async (task) => {
+    if (!window.confirm('Vols eliminar aquesta tasca?')) return;
+    await base44.entities.Task.delete(task.id);
+    load();
   };
 
   if (loading) return <div className="h-64 flex items-center justify-center">Carregant...</div>;
@@ -136,7 +120,7 @@ export default function LeadDetail() {
       <div className="flex items-center gap-3">
         <Link to="/Leads" className="text-slate-500 hover:text-slate-900"><ArrowLeft className="w-5 h-5" /></Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-slate-900 truncate">{lead.contact_name || lead.name || lead.company}</h1>
+          <h1 className="text-xl font-bold text-slate-900 truncate">Detall del lead · {lead.contact_name || lead.name || lead.company}</h1>
           <p className="text-sm text-slate-500">{lead.company} · {lead.owner || 'Sense responsable'}</p>
         </div>
         <div className="flex gap-2">
@@ -150,59 +134,58 @@ export default function LeadDetail() {
         <span className="text-xs font-semibold px-2 py-1 rounded-full text-white" style={{ backgroundColor: pipelineColors[lead.pipeline_status] || '#64748b' }}>{pipelineLabels[lead.pipeline_status] || lead.pipeline_status}</span>
         <span className={`text-xs px-2 py-1 rounded-full ${temp.bg} ${temp.text}`}>{temp.label}</span>
         <span className={`text-xs px-2 py-1 rounded-full ${priority.bg} ${priority.text}`}>{priority.label}</span>
-        {lead.next_action_date && <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">Pròxim pas: {lead.next_action_date}</span>}
+        {lead.next_action_date && <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">Data de la pròxima acció: {lead.next_action_date}</span>}
       </div>
 
+      <ScoreExplanation lead={lead} />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <InfoCard icon={<Mail className="w-4 h-4" />} label="Email" value={lead.email || '-'} link={lead.email ? `mailto:${lead.email}` : undefined} />
+        <InfoCard icon={<Mail className="w-4 h-4" />} label="Correu" value={lead.email || '-'} link={lead.email ? `mailto:${lead.email}` : undefined} />
         <InfoCard icon={<Phone className="w-4 h-4" />} label="Telèfon" value={lead.phone || '-'} link={lead.phone ? `tel:${lead.phone}` : undefined} />
         <InfoCard icon={<Globe className="w-4 h-4" />} label="Web" value={lead.website || '-'} link={lead.website || undefined} />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-slate-100 flex-wrap h-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="proposals">Proposals</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="overview">Resum</TabsTrigger>
+          <TabsTrigger value="activity">Activitat</TabsTrigger>
+          <TabsTrigger value="tasks">Tasques</TabsTrigger>
+          <TabsTrigger value="emails">Correus</TabsTrigger>
+          <TabsTrigger value="proposals">Propostes</TabsTrigger>
+          <TabsTrigger value="timeline">Historial</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-3 pt-3">
           <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Pipeline stage" value={lead.pipeline_status} />
-            <Field label="Lead status" value={lead.lead_status} />
-            <Field label="Lifecycle" value={lead.lifecycle_stage} />
-            <Field label="Priority / urgency" value={`${lead.priority} / ${lead.urgency || '-'}`} />
-            <Field label="Next action" value={lead.next_action || '-'} />
-            <Field label="Next action date" value={lead.next_action_date || '-'} />
-            <Field label="Current result" value={lead.current_result || '-'} />
-            <Field label="Key objection" value={lead.key_objection || '-'} />
-            <Field label="Recommended response" value={lead.recommended_response || '-'} />
-            <Field label="Offer angle" value={lead.offer_angle || '-'} />
-            <Field label="Annual / weighted" value={`€${lead.annual_value || 0} / €${lead.weighted_value || 0}`} />
-            <Field label="Proposal status" value={lead.proposal_status || 'none'} />
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="text-xs text-slate-500 uppercase">Notes</p>
-            <p className="text-sm text-slate-700 whitespace-pre-wrap mt-1">{lead.notes || 'Sense notes'}</p>
+            <Field label="Etapa del pipeline" value={lead.pipeline_status} />
+            <Field label="Estat del lead" value={lead.lead_status} />
+            <Field label="Etapa de vida" value={lead.lifecycle_stage} />
+            <Field label="Prioritat / urgència" value={`${lead.priority} / ${lead.urgency || '-'}`} />
+            <Field label="Acció següent" value={lead.next_action || '-'} />
+            <Field label="Data de la pròxima acció" value={lead.next_action_date || '-'} />
+            <Field label="Resultat actual" value={lead.current_result || '-'} />
+            <Field label="Objecció clau" value={lead.key_objection || '-'} />
+            <Field label="Resposta recomanada" value={lead.recommended_response || '-'} />
+            <Field label="Oferta / angle" value={lead.offer_angle || '-'} />
+            <Field label="Valor anual / ponderat" value={`€${lead.annual_value || 0} / €${lead.weighted_value || 0}`} />
+            <Field label="Estat de proposta" value={lead.proposal_status || 'none'} />
           </div>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-2 pt-3">
-          <Button size="sm" onClick={() => setShowActivity(true)}><Plus className="w-4 h-4 mr-1" />Log activity</Button>
-          {activities.map((activity) => <ActivityCard key={activity.id} item={activity} />)}
+          <Button size="sm" onClick={() => setShowActivity(true)}><Plus className="w-4 h-4 mr-1" />Crear activitat</Button>
+          {activities.map((activity) => <ActivityCard key={activity.id} item={activity} onEdit={() => editActivity(activity)} onDelete={() => deleteActivity(activity)} />)}
           {activities.length === 0 && <Empty text="Encara no hi ha activitat." />}
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-2 pt-3">
-          {tasks.map((task) => <ActivityCard key={task.id} item={{ type: task.type, subject: task.title, summary: `${task.due_date || 'sense data'} · ${task.completed ? 'completada' : 'pendent'}`, activity_date: task.due_date }} />)}
+          <Button size="sm" onClick={() => setEditingTask({ lead_id: lead.id })}><Plus className="w-4 h-4 mr-1" />Crear tasca</Button>
+          {tasks.map((task) => <ActivityCard key={task.id} item={{ type: task.type, subject: task.title, summary: `${task.due_date || 'sense data'} · ${task.completed ? 'completada' : 'pendent'} · ${task.source || 'manual'}`, activity_date: task.due_date }} onEdit={() => setEditingTask(task)} onDelete={() => deleteTask(task)} />)}
           {tasks.length === 0 && <Empty text="No hi ha tasques vinculades." />}
         </TabsContent>
 
         <TabsContent value="emails" className="space-y-2 pt-3">
-          <Button size="sm" onClick={() => setShowEmail(true)}><Mail className="w-4 h-4 mr-1" />Generar email</Button>
+          <Button size="sm" onClick={() => setShowEmail(true)}><Mail className="w-4 h-4 mr-1" />Generar correu</Button>
           {emails.map((email) => (
             <div key={email.id} className="bg-white border border-slate-200 rounded-xl p-3">
               <div className="flex justify-between gap-2">
@@ -210,13 +193,9 @@ export default function LeadDetail() {
                 <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{email.status}</span>
               </div>
               <p className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">{email.body}</p>
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => navigator.clipboard.writeText(`${email.subject}\n\n${email.body}`)} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Copiar</button>
-                {email.status !== 'sent' && <button onClick={() => markEmailSent(email)} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar enviat</button>}
-              </div>
             </div>
           ))}
-          {emails.length === 0 && <Empty text="Sense drafts d'email." />}
+          {emails.length === 0 && <Empty text="Sense esborranys de correu." />}
         </TabsContent>
 
         <TabsContent value="proposals" className="space-y-2 pt-3">
@@ -228,23 +207,14 @@ export default function LeadDetail() {
                 <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{proposal.status}</span>
               </div>
               <p className="text-xs text-slate-600 mt-1">{proposal.summary}</p>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {proposal.status !== 'sent' && <button onClick={() => updateProposalStatus(proposal, 'sent')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Marcar enviada</button>}
-                {proposal.status !== 'accepted' && <button onClick={() => updateProposalStatus(proposal, 'accepted')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Acceptada</button>}
-                {proposal.status !== 'rejected' && <button onClick={() => updateProposalStatus(proposal, 'rejected')} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Rebutjada</button>}
-                <button onClick={async () => {
-                  await base44.entities.Proposal.create({ ...proposal, id: undefined, version: Number(proposal.version || 1) + 1, status: 'draft' });
-                  load();
-                }} className="text-xs px-2 py-1 border rounded border-slate-200 hover:bg-slate-50">Duplicar</button>
-              </div>
             </div>
           ))}
           {proposals.length === 0 && <Empty text="Sense propostes." />}
         </TabsContent>
 
         <TabsContent value="timeline" className="space-y-2 pt-3">
-          {timeline.map((item, idx) => <ActivityCard key={`${item.id}-${idx}`} item={{ type: item._type, subject: item.subject || item.title || 'Event', summary: item.summary || item.status || '', activity_date: item._date }} />)}
-          {timeline.length === 0 && <Empty text="Timeline buida." />}
+          {timeline.map((item, idx) => <ActivityCard key={`${item.id}-${idx}`} item={{ type: item._type, subject: item.subject || item.title || 'Esdeveniment', summary: item.summary || item.status || '', activity_date: item._date }} />)}
+          {timeline.length === 0 && <Empty text="Historial buit." />}
         </TabsContent>
       </Tabs>
 
@@ -260,6 +230,7 @@ export default function LeadDetail() {
       {showProposal && <ProposalModal lead={lead} onClose={() => { setShowProposal(false); load(); }} />}
       {showActivity && <LogActivityModal lead={lead} onClose={() => { setShowActivity(false); load(); }} />}
       {showEdit && <EditLeadModal lead={lead} onClose={() => { setShowEdit(false); load(); }} />}
+      {editingTask && <TaskEditorModal initialTask={editingTask} leads={[lead]} onSave={saveTask} onClose={() => setEditingTask(null)} />}
     </div>
   );
 }
@@ -273,12 +244,13 @@ function Field({ label, value }) {
   return <div><p className="text-[10px] uppercase text-slate-500">{label}</p><p className="text-sm text-slate-800 mt-0.5">{value}</p></div>;
 }
 
-function ActivityCard({ item }) {
+function ActivityCard({ item, onEdit, onDelete }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-3">
       <p className="text-xs text-slate-500">{item.type} · {item.activity_date ? String(item.activity_date).slice(0, 10) : '-'}</p>
       <p className="text-sm font-medium text-slate-900">{item.subject || '-'}</p>
       {item.summary && <p className="text-xs text-slate-600 mt-1">{item.summary}</p>}
+      {(onEdit || onDelete) && <div className="mt-2 flex gap-2">{onEdit && <button className="text-xs border rounded px-2 py-1" onClick={onEdit}><Pencil className="w-3 h-3 inline mr-1" />Editar</button>}{onDelete && <button className="text-xs border rounded px-2 py-1 text-red-600 border-red-200" onClick={onDelete}><Trash2 className="w-3 h-3 inline mr-1" />Eliminar</button>}</div>}
     </div>
   );
 }

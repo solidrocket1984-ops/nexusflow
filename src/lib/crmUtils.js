@@ -1,8 +1,24 @@
-import { addDays, endOfMonth, endOfWeek, format, isValid, parseISO } from 'date-fns';
+import { endOfMonth, endOfWeek, format, isValid, parseISO } from 'date-fns';
 
 export const ENLLAC_PROJECT_ID = 'enllac_digital';
 
 export const today = () => format(new Date(), 'yyyy-MM-dd');
+
+export const SCORE_RULES = [
+  { id: 'overdue_next_action', label: 'Acció següent vençuda', points: 100, when: (lead, ctx) => ctx.overdue },
+  { id: 'next_action_today', label: 'Acció següent avui', points: 80, when: (lead, ctx) => lead.next_action_date === ctx.today },
+  { id: 'today_action_exists', label: 'Acció d’avui definida', points: 60, when: (lead, ctx) => lead.next_action && lead.next_action_date === ctx.today },
+  { id: 'hot_lead', label: 'Lead calent', points: 50, when: (lead) => lead.temperature === 'caliente' },
+  { id: 'high_priority', label: 'Prioritat alta', points: 40, when: (lead) => lead.priority === 'alta' },
+  { id: 'high_urgency', label: 'Urgència alta', points: 35, when: (lead) => ['alta', 'urgent', 'urgente'].includes(lead.urgency) },
+  { id: 'proposal_without_followup', label: 'Proposta enviada sense seguiment', points: 30, when: (lead) => lead.proposal_status === 'sent' && !lead.next_action },
+  { id: 'inactive_14', label: 'Inactivitat > 14 dies', points: 20, when: (lead) => Number(lead.days_without_activity || 0) > 14 },
+  { id: 'inactive_30', label: 'Inactivitat > 30 dies', points: 25, when: (lead) => Number(lead.days_without_activity || 0) > 30 },
+  { id: 'high_probability', label: 'Probabilitat alta', points: 20, when: (lead) => Number(lead.probability || 0) >= 70 },
+  { id: 'high_weighted_value', label: 'Valor ponderat alt', points: 15, when: (lead) => Number(lead.weighted_value || 0) > 3000 },
+  { id: 'very_high_weighted_value', label: 'Valor ponderat molt alt', points: 15, when: (lead) => Number(lead.weighted_value || 0) > 9000 },
+  { id: 'missing_next_step_recent_contact', label: 'Contacte recent sense següent pas', points: 20, when: (lead) => !lead.next_action && !!lead.last_contact },
+];
 
 export function toDate(value) {
   if (!value) return null;
@@ -50,25 +66,16 @@ export function normalizeLead(lead = {}) {
   return normalized;
 }
 
-export function scoreLead(inputLead) {
+export function explainLeadScore(inputLead) {
   const lead = normalizeLead(inputLead);
-  const t = today();
-  let score = 0;
+  const ctx = { today: today(), overdue: isOverdue(lead) };
+  const breakdown = SCORE_RULES.filter((rule) => rule.when(lead, ctx)).map((rule) => ({ ruleId: rule.id, label: rule.label, points: rule.points }));
+  const total = breakdown.reduce((acc, item) => acc + item.points, 0);
+  return { total, breakdown };
+}
 
-  if (isOverdue(lead)) score += 100;
-  if (lead.next_action_date === t) score += 65;
-  if (lead.temperature === 'caliente') score += 50;
-  if (lead.priority === 'alta') score += 35;
-  if (lead.urgency === 'alta' || lead.urgency === 'urgent' || lead.urgency === 'urgente') score += 35;
-  if (lead.proposal_status === 'sent') score += 28;
-  if ((lead.days_without_activity || 0) > 30) score += 24;
-  else if ((lead.days_without_activity || 0) > 14) score += 16;
-  if (!lead.next_action && lead.last_contact) score += 14;
-  if ((lead.probability || 0) >= 70) score += 20;
-  if ((lead.weighted_value || 0) > 3000) score += 15;
-  if ((lead.weighted_value || 0) > 9000) score += 15;
-
-  return score;
+export function scoreLead(inputLead) {
+  return explainLeadScore(inputLead).total;
 }
 
 export function isOverdue(lead) {
@@ -148,8 +155,8 @@ export function getStaleReason(lead) {
 
 export function getDataQualityWarnings(lead) {
   const warnings = [];
-  if (!lead.email && !lead.phone) warnings.push('Falten email i telèfon');
-  if (!lead.next_action) warnings.push('Falta pròxima acció');
+  if (!lead.email && !lead.phone) warnings.push('Falten correu i telèfon');
+  if (!lead.next_action) warnings.push('Falta acció següent');
   if (!lead.pipeline_status || !lead.lead_status) warnings.push('Falta estat comercial');
   if (!lead.owner) warnings.push('Falta responsable');
   const staleReason = getStaleReason(lead);
@@ -194,7 +201,7 @@ export function getLeadSuggestions(lead) {
       type: 'proposal_follow_up',
       priority: 'alta',
       reason: 'Proposta enviada pendent de resposta',
-      cta: 'Fer follow-up de proposta',
+      cta: 'Fer seguiment de proposta',
     });
   }
 
@@ -238,18 +245,12 @@ export function normalizeStatus(val) {
     contactat: 'contactado',
     contactado: 'contactado',
     'pendent resposta': 'pendiente_respuesta',
-    'pendiente respuesta': 'pendiente_respuesta',
     'reunió agendada': 'reunion_agendada',
-    'reunion agendada': 'reunion_agendada',
     'proposta enviada': 'propuesta_enviada',
-    'propuesta enviada': 'propuesta_enviada',
     negociació: 'negociacion',
-    negociación: 'negociacion',
     guanyat: 'ganado',
-    ganado: 'ganado',
     won: 'ganado',
     perdut: 'perdido',
-    perdido: 'perdido',
     lost: 'perdido',
   };
   return map[v] || val;
@@ -258,7 +259,7 @@ export function normalizeStatus(val) {
 export const pipelineLabels = {
   nuevo: 'Nou',
   contactado: 'Contactat',
-  pendiente_respuesta: 'Pend. resposta',
+  pendiente_respuesta: 'Pendent de resposta',
   reunion_agendada: 'Reunió agendada',
   propuesta_enviada: 'Proposta enviada',
   negociacion: 'Negociació',
