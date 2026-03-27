@@ -11,6 +11,15 @@
     "title": {
       "type": "string"
     },
+    "client_name": {
+      "type": "string"
+    },
+    "template_name": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
     "summary": {
       "type": "string",
       "description": "Commercial summary (long text)"
@@ -27,6 +36,51 @@
       "type": "string",
       "description": "Offer angle (long text)"
     },
+    "cover_sector_label": {
+      "type": "string"
+    },
+    "plantejament": {
+      "type": "string"
+    },
+    "solution_items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "implementation_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "process_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expected_results": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pricing_rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "concepte": { "type": "string" },
+          "base_imposable": { "type": "number" },
+          "iva": { "type": "number" },
+          "total": { "type": "number" }
+        }
+      }
+    },
+    "contact_block": {
+      "type": "object"
+    },
     "setup_fee": {
       "type": "number"
     },
@@ -36,10 +90,14 @@
     "annual_value": {
       "type": "number"
     },
+    "proposal_total": {
+      "type": "number"
+    },
     "status": {
       "type": "string",
       "enum": [
         "draft",
+        "ready",
         "sent",
         "accepted",
         "rejected"
@@ -53,6 +111,10 @@
     "version": {
       "type": "number",
       "default": 1
+    },
+    "generated_from_lead": {
+      "type": "boolean",
+      "default": true
     },
     "notes": {
       "type": "string",
