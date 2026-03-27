@@ -37,11 +37,10 @@ export default function ProposalModal({ lead, onClose }) {
 
     await base44.entities.Activity.create({
       lead_id: lead.id,
-      type: 'proposal_generated',
-      subject: 'Proposta generada',
-      summary: res.title,
-      activity_date: new Date().toISOString(),
-      auto_generated: true,
+      project_id: lead.project_id || 'enlac_digital',
+      type: 'propuesta',
+      description: `Proposta generada: ${res.title}`,
+      date: new Date().toISOString(),
     });
 
     setProposal(res);
