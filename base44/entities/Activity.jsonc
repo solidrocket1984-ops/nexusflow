@@ -1,0 +1,18 @@
+{
+  "name": "Activity",
+  "type": "object",
+  "properties": {
+    "lead_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "type": { "type": "string" },
+    "subject": { "type": "string" },
+    "summary": { "type": "string", "description": "Activity summary" },
+    "outcome": { "type": "string" },
+    "activity_date": { "type": "string", "format": "date-time" },
+    "next_action": { "type": "string" },
+    "next_action_date": { "type": "string", "format": "date" },
+    "auto_generated": { "type": "boolean", "default": false },
+    "created_manually": { "type": "boolean", "default": true }
+  },
+  "required": ["lead_id", "type", "activity_date"]
+}

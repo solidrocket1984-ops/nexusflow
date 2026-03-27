@@ -1,40 +1,50 @@
 import React, { useState } from 'react';
+import { format } from 'date-fns';
+import { X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X } from 'lucide-react';
-import { format } from 'date-fns';
 
 export default function LogActivityModal({ lead, onClose }) {
-  const [type, setType] = useState('llamada');
-  const [subject, setSubject] = useState('');
-  const [summary, setSummary] = useState('');
-  const [outcome, setOutcome] = useState('');
-  const [nextAction, setNextAction] = useState('');
-  const [nextDate, setNextDate] = useState('');
+  const [form, setForm] = useState({ type: 'call', subject: '', summary: '', outcome: '', next_action: '', next_action_date: '', create_followup_task: false });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
+    const today = format(new Date(), 'yyyy-MM-dd');
     await base44.entities.Activity.create({
       lead_id: lead.id,
-      project_id: lead.project_id,
-      type,
-      subject,
-      summary,
-      outcome,
-      next_action: nextAction,
-      next_action_date: nextDate || null,
-      date: new Date().toISOString(),
+      type: form.type,
+      subject: form.subject,
+      summary: form.summary,
+      outcome: form.outcome,
+      activity_date: new Date().toISOString(),
+      next_action: form.next_action || null,
+      next_action_date: form.next_action_date || null,
       created_manually: true,
+      auto_generated: false,
     });
 
-    // Update lead's last contact and next action
-    const updates = { last_contact: format(new Date(), 'yyyy-MM-dd') };
-    if (nextAction) updates.next_action = nextAction;
-    if (nextDate) updates.next_action_date = nextDate;
+    const updates = { last_activity_date: today, last_contact: today };
+    if (form.type === 'call') updates.last_call_date = today;
+    if (form.type === 'email') updates.last_email_date = today;
+    if (form.next_action) updates.next_action = form.next_action;
+    if (form.next_action_date) updates.next_action_date = form.next_action_date;
     await base44.entities.Lead.update(lead.id, updates);
+
+    if (form.create_followup_task && form.next_action) {
+      await base44.entities.Task.create({
+        title: `Follow-up: ${form.next_action}`,
+        lead_id: lead.id,
+        project_id: lead.project_id,
+        due_date: form.next_action_date || today,
+        type: 'seguimiento',
+        priority: 'media',
+        source: 'manual',
+        completed: false,
+      });
+    }
 
     setSaving(false);
     onClose();
@@ -42,58 +52,30 @@ export default function LogActivityModal({ lead, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Registrar activitat</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
+      <div className="bg-white rounded-2xl w-full max-w-md">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-bold">Registrar activitat</h2>
+          <button onClick={onClose}><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-5 space-y-3">
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Tipus</label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="llamada">📞 Trucada</SelectItem>
-                <SelectItem value="email">✉️ Email</SelectItem>
-                <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
-                <SelectItem value="reunion">🤝 Reunió</SelectItem>
-                <SelectItem value="nota">📝 Nota</SelectItem>
-                <SelectItem value="propuesta">📄 Proposta</SelectItem>
-                <SelectItem value="follow_up">🔄 Follow-up</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Assumpte</label>
-            <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Breu descripció de l'activitat" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Resum</label>
-            <textarea value={summary} onChange={e => setSummary(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-              rows={3} placeholder="Que ha passat? Resum de la conversa..." />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Resultat</label>
-            <Input value={outcome} onChange={e => setOutcome(e.target.value)} placeholder="Quin ha estat el resultat?" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Pròxim pas</label>
-              <Input value={nextAction} onChange={e => setNextAction(e.target.value)} placeholder="Acció a fer..." />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Data</label>
-              <Input type="date" value={nextDate} onChange={e => setNextDate(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} className="flex-1 text-sm">Cancel·lar</Button>
-            <Button onClick={save} disabled={saving} className="flex-1 text-sm">
-              {saving ? 'Desant...' : 'Desar activitat'}
-            </Button>
+        <div className="p-4 space-y-3">
+          <Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="call">Trucada</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="meeting">Reunió</SelectItem>
+              <SelectItem value="note">Nota</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input placeholder="Assumpte" value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} />
+          <textarea className="w-full border rounded-md p-2 text-sm" rows={3} placeholder="Resum" value={form.summary} onChange={(e) => setForm((p) => ({ ...p, summary: e.target.value }))} />
+          <Input placeholder="Resultat" value={form.outcome} onChange={(e) => setForm((p) => ({ ...p, outcome: e.target.value }))} />
+          <Input placeholder="Pròxim pas" value={form.next_action} onChange={(e) => setForm((p) => ({ ...p, next_action: e.target.value }))} />
+          <Input type="date" value={form.next_action_date} onChange={(e) => setForm((p) => ({ ...p, next_action_date: e.target.value }))} />
+          <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={form.create_followup_task} onChange={(e) => setForm((p) => ({ ...p, create_followup_task: e.target.checked }))} /> Crear tasca de follow-up</label>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel·lar</Button>
+            <Button className="flex-1" onClick={save} disabled={saving}>{saving ? 'Desant...' : 'Desar activitat'}</Button>
           </div>
         </div>
       </div>
