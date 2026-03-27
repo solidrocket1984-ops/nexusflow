@@ -1,15 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { addDays, endOfMonth, endOfWeek, format } from 'date-fns';
 import { Plus, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskRow from '../components/tasks/TaskRow';
+import TaskEditorModal from '../components/tasks/TaskEditorModal';
 import { useLeads, useTasks } from '../components/shared/useAppData';
 import { ENLLAC_PROJECT_ID } from '../lib/crmUtils';
+import { runAutomaticTaskRules } from '../lib/taskAutomation';
 
 export default function Tasks() {
   const { data: tasks = [] } = useTasks();
@@ -20,27 +21,40 @@ export default function Tasks() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
+  const [originFilter, setOriginFilter] = useState('all');
+  const [completedFilter, setCompletedFilter] = useState('all');
+  const [leadFilter, setLeadFilter] = useState('all');
+  const [selected, setSelected] = useState({});
+  const [editingTask, setEditingTask] = useState(null);
   const [showNew, setShowNew] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', due_date: '', type: 'seguimiento', priority: 'media' });
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const endWeek = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const endMonthDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
 
-  const filtered = useMemo(() => {
-    return tasks.filter((task) => {
-      if (typeFilter !== 'all' && task.type !== typeFilter) return false;
-      if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
-      if (urgencyFilter !== 'all' && task.urgency !== urgencyFilter) return false;
-
-      if (tab === 'today') return !task.completed && task.due_date === today;
-      if (tab === 'this_week') return !task.completed && task.due_date >= today && task.due_date <= endWeek;
-      if (tab === 'this_month') return !task.completed && task.due_date >= today && task.due_date <= endMonthDate;
-      if (tab === 'overdue') return !task.completed && task.due_date && task.due_date < today;
-      if (tab === 'completed') return task.completed;
-      return true;
+  useEffect(() => {
+    if (!leads.length) return;
+    runAutomaticTaskRules(leads, tasks).then((created) => {
+      if (created > 0) queryClient.invalidateQueries({ queryKey: ['tasks'] });
     });
-  }, [tasks, tab, typeFilter, priorityFilter, urgencyFilter, today, endWeek, endMonthDate]);
+  }, [leads.length]);
+
+  const filtered = useMemo(() => tasks.filter((task) => {
+    if (typeFilter !== 'all' && task.type !== typeFilter) return false;
+    if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+    if (urgencyFilter !== 'all' && task.urgency !== urgencyFilter) return false;
+    if (originFilter !== 'all' && task.source !== originFilter) return false;
+    if (completedFilter === 'yes' && !task.completed) return false;
+    if (completedFilter === 'no' && task.completed) return false;
+    if (leadFilter !== 'all' && task.lead_id !== leadFilter) return false;
+
+    if (tab === 'today') return !task.completed && task.due_date === today;
+    if (tab === 'this_week') return !task.completed && task.due_date >= today && task.due_date <= endWeek;
+    if (tab === 'this_month') return !task.completed && task.due_date >= today && task.due_date <= endMonthDate;
+    if (tab === 'overdue') return !task.completed && task.due_date && task.due_date < today;
+    if (tab === 'completed') return task.completed;
+    return true;
+  }), [tasks, tab, typeFilter, priorityFilter, urgencyFilter, originFilter, completedFilter, leadFilter, today, endWeek, endMonthDate]);
 
   const counters = {
     today: tasks.filter((task) => !task.completed && task.due_date === today).length,
@@ -50,73 +64,99 @@ export default function Tasks() {
     completed: tasks.filter((task) => task.completed).length,
   };
 
-  const createTask = async () => {
-    if (!newTask.title.trim()) return;
-    await base44.entities.Task.create({
-      ...newTask,
-      completed: false,
-      source: 'manual',
-      recurrence: 'none',
-      project_id: ENLLAC_PROJECT_ID,
-      task_bucket: 'backlog',
-    });
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    setNewTask({ title: '', due_date: format(addDays(new Date(), 1), 'yyyy-MM-dd'), type: 'seguimiento', priority: 'media' });
+  const saveTask = async (payload) => {
+    if (editingTask?.id) {
+      await base44.entities.Task.update(editingTask.id, payload);
+    } else {
+      await base44.entities.Task.create({ ...payload, project_id: ENLLAC_PROJECT_ID, task_bucket: 'backlog', source: payload.source || 'manual' });
+    }
+    setEditingTask(null);
     setShowNew(false);
+    setSelected({});
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  const toggleComplete = async (task) => {
+    await base44.entities.Task.update(task.id, { completed: !task.completed, completed_date: !task.completed ? today : null, status: !task.completed ? 'completada' : 'pendent' });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  const reschedule = async (task, days) => {
+    const current = task.due_date ? new Date(task.due_date) : new Date();
+    await base44.entities.Task.update(task.id, { due_date: format(addDays(current, days), 'yyyy-MM-dd') });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  const deleteTask = async (task) => {
+    if (!window.confirm(`Vols eliminar la tasca "${task.title}"?`)) return;
+    await base44.entities.Task.delete(task.id);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  const selectedTasks = filtered.filter((task) => selected[task.id]);
+
+  const applyBulk = async (mode) => {
+    const updates = selectedTasks.map((task) => {
+      if (mode === 'complete') return base44.entities.Task.update(task.id, { completed: true, completed_date: today });
+      if (mode === 'tomorrow') return base44.entities.Task.update(task.id, { due_date: format(addDays(new Date(), 1), 'yyyy-MM-dd') });
+      if (mode === 'next_week') return base44.entities.Task.update(task.id, { due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd') });
+      if (mode === 'priority_high') return base44.entities.Task.update(task.id, { priority: 'alta' });
+      if (mode === 'type_followup') return base44.entities.Task.update(task.id, { type: 'seguimiento' });
+      return null;
+    }).filter(Boolean);
+    await Promise.all(updates);
+    setSelected({});
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   return (
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Execution center · Tasques</h1>
-          <p className="text-sm text-slate-500">{tasks.filter((task) => !task.completed).length} pendents · {counters.overdue} vençudes</p>
+          <h1 className="text-2xl font-bold text-slate-900">Centre d'execució · Tasques</h1>
+          <p className="text-sm text-slate-500">{tasks.filter((task) => !task.completed).length} pendents · {tasks.filter((task) => task.source !== 'manual').length} automàtiques</p>
         </div>
-        <Button size="sm" onClick={() => setShowNew((p) => !p)} variant={showNew ? 'outline' : 'default'}>
+        <Button size="sm" onClick={() => { setEditingTask(null); setShowNew((p) => !p); }} variant={showNew ? 'outline' : 'default'}>
           {showNew ? <X className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
           {showNew ? 'Tancar' : 'Nova tasca'}
         </Button>
       </header>
 
-      {showNew && (
-        <div className="bg-white rounded-xl border border-slate-200 p-3 grid grid-cols-1 lg:grid-cols-5 gap-2">
-          <Input value={newTask.title} onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))} placeholder="Títol tasca" className="lg:col-span-2" />
-          <Input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} />
-          <Select value={newTask.type} onValueChange={(v) => setNewTask((p) => ({ ...p, type: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="seguimiento">Seguiment</SelectItem>
-              <SelectItem value="llamada">Trucada</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="reunion">Reunió</SelectItem>
-              <SelectItem value="propuesta">Proposta</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={createTask}>Crear</Button>
-        </div>
-      )}
+      {showNew && <TaskEditorModal leads={leads} onSave={saveTask} onClose={() => setShowNew(false)} title="Crear tasca manual" />}
+      {editingTask && <TaskEditorModal leads={leads} initialTask={editingTask} onSave={saveTask} onClose={() => setEditingTask(null)} title="Editar tasca" />}
 
       <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-2">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-slate-100 flex-wrap h-auto">
-            <TabsTrigger value="today">Today ({counters.today})</TabsTrigger>
-            <TabsTrigger value="this_week">This week ({counters.this_week})</TabsTrigger>
-            <TabsTrigger value="this_month">This month ({counters.this_month})</TabsTrigger>
-            <TabsTrigger value="overdue" className="text-red-600">Overdue ({counters.overdue})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({counters.completed})</TabsTrigger>
+            <TabsTrigger value="today">Avui ({counters.today})</TabsTrigger>
+            <TabsTrigger value="this_week">Aquesta setmana ({counters.this_week})</TabsTrigger>
+            <TabsTrigger value="this_month">Aquest mes ({counters.this_month})</TabsTrigger>
+            <TabsTrigger value="overdue" className="text-red-600">Vençudes ({counters.overdue})</TabsTrigger>
+            <TabsTrigger value="completed">Completades ({counters.completed})</TabsTrigger>
+            <TabsTrigger value="all">Totes ({tasks.length})</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <FilterSelect value={priorityFilter} onValueChange={setPriorityFilter} options={[['all', 'Prioritat: totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
-          <FilterSelect value={urgencyFilter} onValueChange={setUrgencyFilter} options={[['all', 'Urgència: totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
-          <FilterSelect value={typeFilter} onValueChange={setTypeFilter} options={[['all', 'Tipus: tots'], ['seguimiento', 'Seguiment'], ['llamada', 'Trucada'], ['email', 'Email'], ['reunion', 'Reunió'], ['propuesta', 'Proposta']]} />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <FilterSelect value={typeFilter} onValueChange={setTypeFilter} options={[['all','Tipus'], ['call','Trucar'],['visit','Visita'],['seguimiento','Seguiment'],['email','Correu'],['proposal_send','Enviar proposta'],['meeting','Reunió'],['admin','Admin']]} />
+          <FilterSelect value={priorityFilter} onValueChange={setPriorityFilter} options={[['all','Prioritat'], ['alta','Alta'],['media','Mitja'],['baja','Baixa']]} />
+          <FilterSelect value={urgencyFilter} onValueChange={setUrgencyFilter} options={[['all','Urgència'], ['alta','Alta'],['media','Mitja'],['baja','Baixa']]} />
+          <FilterSelect value={originFilter} onValueChange={setOriginFilter} options={[['all','Origen'], ['manual','Manual'],['automatic','Automàtic'],['crm_rule','Regla CRM']]} />
+          <FilterSelect value={completedFilter} onValueChange={setCompletedFilter} options={[['all','Completada'], ['no','No'],['yes','Sí']]} />
+          <FilterSelect value={leadFilter} onValueChange={setLeadFilter} options={[['all','Lead vinculat'], ...leads.map((lead) => [lead.id, lead.contact_name || lead.company || lead.name])]} />
+          <FilterSelect value="bulk" onValueChange={applyBulk} options={[['bulk','Accions massives'], ['complete','Marcar completada'], ['tomorrow','Assignar a demà'], ['next_week','Assignar a setmana vinent'], ['type_followup','Canviar tipus'], ['priority_high','Canviar prioritat']]} />
+          <div className="text-xs text-slate-500 flex items-center">Seleccionades: {selectedTasks.length}</div>
         </div>
       </div>
 
       <section className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
         {filtered.length === 0 && <div className="p-8 text-center text-slate-400">No hi ha tasques en aquesta vista</div>}
         {filtered.map((task) => (
-          <TaskRow key={task.id} task={task} leads={leads} askNextStep />
+          <div key={task.id} className="flex gap-2 items-start">
+            <input className="mt-5 ml-2" type="checkbox" checked={!!selected[task.id]} onChange={(e) => setSelected((p) => ({ ...p, [task.id]: e.target.checked }))} />
+            <div className="flex-1">
+              <TaskRow task={task} leads={leads} onToggleComplete={toggleComplete} onEdit={setEditingTask} onDelete={deleteTask} onReschedule={reschedule} />
+            </div>
+          </div>
         ))}
       </section>
     </div>

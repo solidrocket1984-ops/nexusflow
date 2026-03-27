@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Lightbulb, CheckCircle, X } from 'lucide-react';
 import { useLeads } from '../components/shared/useAppData';
 import { generateSuggestionsFromLeads } from '../lib/crmUtils';
+import ScoreExplanation from '../components/shared/ScoreExplanation';
 
 export default function Suggestions() {
   const { data: leads = [] } = useLeads();
@@ -13,8 +14,8 @@ export default function Suggestions() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">Suggestions CRM</h1>
-        <p className="text-sm text-slate-500">Accions derivades de l'estat real de Leads, Tasques i Propostes.</p>
+        <h1 className="text-2xl font-bold text-slate-900">Suggeriments CRM</h1>
+        <p className="text-sm text-slate-500">Accions derivades de l'estat real de contactes, tasques i propostes.</p>
       </header>
 
       <section className="space-y-2">
@@ -29,7 +30,7 @@ export default function Suggestions() {
                 <Link to={`/LeadDetail?id=${suggestion.lead_id}`} className="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">{suggestion.cta}</Link>
                 <button onClick={() => setHidden((p) => ({ ...p, [suggestion.id]: true }))} className="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50"><X className="w-3 h-3 inline mr-1" />Descartar</button>
                 <span className={`text-[10px] px-2 py-1 rounded-full ${suggestion.priority === 'alta' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{suggestion.priority}</span>
-                <span className="text-[10px] text-slate-400">score {suggestion.score}</span>
+                <span className="text-[10px] text-slate-400">puntuació {suggestion.score}</span><ScoreExplanation lead={suggestion.lead} compact />
               </div>
             </div>
             <CheckCircle className="w-4 h-4 text-emerald-500 mt-1" />

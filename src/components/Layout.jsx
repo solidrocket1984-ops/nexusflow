@@ -4,11 +4,12 @@ import { LayoutDashboard, Users, CheckSquare, Lightbulb, Calendar, Menu, X, Zap 
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/Leads', icon: Users, label: 'Leads' },
+  { path: '/Dashboard', icon: LayoutDashboard, label: 'Tauler' },
+  { path: '/Leads', icon: Users, label: 'Contactes / Leads' },
   { path: '/Tasks', icon: CheckSquare, label: 'Tasques' },
-  { path: '/Suggestions', icon: Lightbulb, label: 'Que faig ara?' },
+  { path: '/Suggestions', icon: Lightbulb, label: 'Suggeriments' },
   { path: '/Agenda', icon: Calendar, label: 'Agenda' },
+  { path: '/SettingsPage', icon: Calendar, label: 'Configuració' },
 ];
 
 export default function Layout() {

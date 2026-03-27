@@ -5,6 +5,7 @@ import { useLeads } from '../components/shared/useAppData';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import ScoreExplanation from '@/components/shared/ScoreExplanation';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -90,7 +91,7 @@ export default function Leads() {
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Leads · Enllaç Digital</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Contactes / Leads · Enllaç Digital</h1>
           <p className="text-sm text-slate-500">{leads.filter(isActiveInPipeline).length} actius · {filtered.length} visibles</p>
         </div>
         <Select value={sortBy} onValueChange={setSortBy}>
@@ -108,12 +109,12 @@ export default function Leads() {
       <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar empresa, contacte, email o telèfon" />
+          <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca empresa, contacte, correu o telèfon" />
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
           <FilterSelect value={filters.pipeline_status} onValueChange={(v) => setFilters((p) => ({ ...p, pipeline_status: v }))} label="Pipeline" options={[['all', 'Tots'], ...Object.entries(pipelineLabels)]} />
-          <FilterSelect value={filters.lead_status} onValueChange={(v) => setFilters((p) => ({ ...p, lead_status: v }))} label="Lead status" options={[['all', 'Tots'], ['active', 'Actiu'], ['won', 'Guanyat'], ['lost', 'Perdut']]} />
+          <FilterSelect value={filters.lead_status} onValueChange={(v) => setFilters((p) => ({ ...p, lead_status: v }))} label="Estat del lead" options={[['all', 'Tots'], ['active', 'Actiu'], ['won', 'Guanyat'], ['lost', 'Perdut']]} />
           <FilterSelect value={filters.temperature} onValueChange={(v) => setFilters((p) => ({ ...p, temperature: v }))} label="Temperatura" options={[['all', 'Totes'], ['frio', 'Fred'], ['templado', 'Temperat'], ['caliente', 'Calent']]} />
           <FilterSelect value={filters.priority} onValueChange={(v) => setFilters((p) => ({ ...p, priority: v }))} label="Prioritat" options={[['all', 'Totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
           <FilterSelect value={filters.urgency} onValueChange={(v) => setFilters((p) => ({ ...p, urgency: v }))} label="Urgència" options={[['all', 'Totes'], ['alta', 'Alta'], ['media', 'Mitja'], ['baja', 'Baixa']]} />
@@ -139,12 +140,12 @@ export default function Leads() {
                   <Link className="text-sm font-semibold text-slate-900 hover:text-blue-600" to={`/LeadDetail?id=${lead.id}`}>{lead.contact_name || lead.name || lead.company}</Link>
                   <p className="text-xs text-slate-500">{lead.company || 'Sense empresa'} · {lead.email || lead.phone || 'Sense contacte'}</p>
                 </div>
-                <span className="text-xs font-semibold text-slate-500">score {scoreLead(lead)}</span>
+                <div className="flex flex-col items-end gap-1"><span className="text-xs font-semibold text-slate-500">puntuació {scoreLead(lead)}</span><ScoreExplanation lead={lead} compact /></div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-semibold px-2 py-1 rounded-full text-white" style={{ backgroundColor: pipelineColors[lead.pipeline_status] || '#64748b' }}>{pipelineLabels[lead.pipeline_status] || lead.pipeline_status}</span>
                 {lead.temperature && <span className={`text-[10px] px-2 py-1 rounded-full ${temperatureColors[lead.temperature]?.bg} ${temperatureColors[lead.temperature]?.text}`}>{temperatureColors[lead.temperature]?.label || lead.temperature}</span>}
-                {isOverdue(lead) && <span className="text-[10px] px-2 py-1 rounded-full bg-red-100 text-red-700">Next action vençuda</span>}
+                {isOverdue(lead) && <span className="text-[10px] px-2 py-1 rounded-full bg-red-100 text-red-700">Acció següent vençuda</span>}
                 {warnings.length > 0 && <span className="text-[10px] px-2 py-1 rounded-full bg-amber-100 text-amber-700">⚠ {warnings.length} alerta qualitat</span>}
               </div>
               {warnings.length > 0 && <p className="text-xs text-amber-700">{warnings.join(' · ')}</p>}
@@ -164,12 +165,12 @@ export default function Leads() {
       </section>
 
       <section className="bg-white rounded-xl border border-slate-200 p-4">
-        <h2 className="text-sm font-semibold text-slate-800 mb-2">Duplicate review</h2>
+        <h2 className="text-sm font-semibold text-slate-800 mb-2">Revisió de duplicats</h2>
         {duplicateMap.length === 0 && <p className="text-sm text-slate-500">No s'han detectat duplicats probables.</p>}
         <div className="space-y-3">
           {duplicateMap.map(([key, entries]) => (
             <div key={key} className="border border-slate-200 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-2">Key: {key}</p>
+              <p className="text-xs text-slate-500 mb-2">Clau: {key}</p>
               <div className="space-y-2">
                 {entries.map((lead) => (
                   <div key={lead.id} className="flex items-center justify-between">
