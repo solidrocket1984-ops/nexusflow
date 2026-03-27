@@ -18,48 +18,68 @@ export const PROPOSAL_STATUS_LABELS = {
 
 export const DEFAULT_TEMPLATE_NAME = 'Enllaç Digital · Assistència digital web';
 
-const defaultPricingRows = (lead) => {
-  const setupBase = Number(lead?.setup_fee || 1200);
-  const monthlyBase = Number(lead?.monthly_fee || 390);
-  return [
-    { concepte: 'Implantació inicial', base_imposable: setupBase },
-    { concepte: 'Servei mensual / manteniment / optimització', base_imposable: monthlyBase },
-  ].map((row) => {
-    const iva = roundTo2(row.base_imposable * 0.21);
-    return {
-      ...row,
-      iva,
-      total: roundTo2(row.base_imposable + iva),
-    };
-  });
-};
-
 export function roundTo2(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
 
-export function calculatePricingRow(row) {
-  const base = Number(row?.base_imposable || 0);
-  const iva = roundTo2(base * 0.21);
+function normalizePricingRow(row = {}) {
+  const concept = row.concept || row.concepte || '';
+  const base = Number(row.base ?? row.base_imposable ?? 0);
+  const vat = Number(row.vat ?? 0.21);
+  const vatAmount = Number.isFinite(row.vatAmount)
+    ? Number(row.vatAmount)
+    : Number.isFinite(row.iva)
+      ? Number(row.iva)
+      : roundTo2(base * vat);
+
   return {
-    concepte: row?.concepte || '',
+    concept,
+    concepte: concept,
+    base,
     base_imposable: base,
-    iva,
-    total: roundTo2(base + iva),
+    vat,
+    iva: roundTo2(vatAmount),
+    vatAmount: roundTo2(vatAmount),
+    total: roundTo2(base + vatAmount),
   };
 }
 
-export function calculatePricingTotals(rows = []) {
-  const normalized = rows.map(calculatePricingRow);
-  return normalized.reduce(
+const defaultPricingRows = (lead) => {
+  const setupBase = Number(lead?.setup_fee || 1200);
+  const monthlyBase = Number(lead?.monthly_fee || 390);
+
+  return [
+    { concept: 'Implantació inicial', base: setupBase, vat: 0.21 },
+    { concept: 'Servei mensual / manteniment / optimització', base: monthlyBase, vat: 0.21 },
+  ].map(normalizePricingRow);
+};
+
+export function calculatePricingRow(row) {
+  return normalizePricingRow(row);
+}
+
+export function calculateProposalTotals(rows = []) {
+  const normalizedRows = rows.map(normalizePricingRow);
+
+  return normalizedRows.reduce(
     (acc, row) => {
-      acc.base += row.base_imposable;
-      acc.iva += row.iva;
-      acc.total += row.total;
+      acc.baseTotal += row.base;
+      acc.vatTotal += row.vatAmount;
+      acc.grandTotal += row.total;
+      acc.rows.push(row);
       return acc;
     },
-    { base: 0, iva: 0, total: 0 }
+    { rows: [], baseTotal: 0, vatTotal: 0, grandTotal: 0 }
   );
+}
+
+export function calculatePricingTotals(rows = []) {
+  const totals = calculateProposalTotals(rows);
+  return {
+    base: totals.baseTotal,
+    iva: totals.vatTotal,
+    total: totals.grandTotal,
+  };
 }
 
 export function getProposalClientName(lead = {}) {
@@ -92,6 +112,15 @@ export function buildDefaultProposalSections(lead = {}) {
 
   const plantejament = `Hem preparat aquesta proposta per a ${context.client_name}, pensada per millorar la primera atenció digital i convertir més visites web en oportunitats reals. ${context.cover_sector_label ? `En el context de ${context.cover_sector_label},` : ''} enfoquem la solució per mantenir un tracte personal però amb suport automatitzat des del primer contacte.`;
 
+  const includedItems = [
+    'Atenció immediata',
+    'Orientació comercial',
+    'Captació de leads',
+    'Qualificació prèvia',
+    'Gestió d’objeccions',
+    'Base escalable',
+  ];
+
   return {
     title: `Proposta d’assistent digital per a ${context.cover_sector_label}`,
     subtitle: 'Una proposta pensada per reforçar l’atenció inicial des de la web, sense perdre el valor del tracte personal.',
@@ -102,14 +131,8 @@ export function buildDefaultProposalSections(lead = {}) {
     cover_sector_label: context.cover_sector_label,
     client_name: context.client_name,
     plantejament,
-    solution_items: [
-      'Atenció immediata',
-      'Orientació comercial',
-      'Captació de leads',
-      'Qualificació prèvia',
-      'Gestió d’objeccions',
-      'Base escalable',
-    ],
+    included_items: includedItems,
+    solution_items: includedItems,
     implementation_steps: [
       'Sessió inicial de definició de missatges i objectius.',
       'Configuració de l’assistent amb FAQs, objeccions i derivacions.',
@@ -138,6 +161,7 @@ export function buildDefaultProposalSections(lead = {}) {
       client_email: context.email,
       client_phone: context.phone,
       client_website: context.website,
+      service_model: 'Subscripció mensual + implantació inicial',
       model_servei: 'Subscripció mensual + implantació inicial',
       tipus_document: 'Document de proposta',
       generated_on: format(new Date(), 'yyyy-MM-dd'),
@@ -146,9 +170,43 @@ export function buildDefaultProposalSections(lead = {}) {
   };
 }
 
+export function serializeProposalPayload(values = {}, lead = {}) {
+  const totals = calculateProposalTotals(values.pricing_rows || []);
+  const status = values.status || 'draft';
+
+  return {
+    lead_id: values.lead_id || lead.id,
+    project_id: values.project_id || lead.project_id,
+    title: values.title || '',
+    subtitle: values.subtitle || '',
+    summary: values.summary || '',
+    client_name: values.client_name || getProposalClientName(lead),
+    plantejament: values.plantejament || values.problem || '',
+    included_items: values.included_items || values.solution_items || [],
+    solution_items: values.included_items || values.solution_items || [],
+    implementation_steps: values.implementation_steps || [],
+    expected_results: values.expected_results || [],
+    process_steps: values.process_steps || [],
+    pricing_rows: totals.rows,
+    contact_block: {
+      ...values.contact_block,
+      service_model: values.contact_block?.service_model || values.contact_block?.model_servei || '',
+      model_servei: values.contact_block?.model_servei || values.contact_block?.service_model || '',
+    },
+    notes: values.notes || '',
+    status,
+    sent_date: status === 'sent' ? values.sent_date || format(new Date(), 'yyyy-MM-dd') : values.sent_date,
+  };
+}
+
 export function serializeProposalForCopy(proposal) {
-  const priceRows = (proposal.pricing_rows || []).map((row) => `- ${row.concepte}: ${row.total}€ (Base ${row.base_imposable}€ + IVA ${row.iva}€)`).join('\n');
-  const solution = (proposal.solution_items || []).map((x) => `- ${x}`).join('\n');
+  const priceRows = (proposal.pricing_rows || [])
+    .map((row) => {
+      const normalized = normalizePricingRow(row);
+      return `- ${normalized.concept}: ${normalized.total}€ (Base ${normalized.base}€ + IVA ${normalized.vatAmount}€)`;
+    })
+    .join('\n');
+  const solution = (proposal.included_items || proposal.solution_items || []).map((x) => `- ${x}`).join('\n');
   const implementation = (proposal.implementation_steps || []).map((x) => `- ${x}`).join('\n');
   const expected = (proposal.expected_results || []).map((x) => `- ${x}`).join('\n');
   const process = (proposal.process_steps || []).map((x, i) => `${i + 1}. ${x}`).join('\n');

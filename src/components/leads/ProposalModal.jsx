@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import {
   buildDefaultProposalSections,
   calculateProposalTotals,
+  calculatePricingRow,
   serializeProposalPayload,
 } from '@/lib/proposalUtils';
 
-import enllacLogo from '@/assets/enllac-digital-logo.png';
+import enllacLogo from '@/assets/enllac-digital-logo.svg';
 
 export default function ProposalModal({ lead, proposal, onClose }) {
   const [saving, setSaving] = useState(false);
@@ -21,9 +22,9 @@ export default function ProposalModal({ lead, proposal, onClose }) {
         subtitle: proposal.subtitle || '',
         summary: proposal.summary || '',
         plantejament: proposal.plantejament || proposal.problem || '',
-        included_items: proposal.included_items || [],
+        included_items: proposal.included_items || proposal.solution_items || [],
         implementation_steps: proposal.implementation_steps || [],
-        pricing_rows: proposal.pricing_rows || [],
+        pricing_rows: (proposal.pricing_rows || []).map((row) => calculatePricingRow(row)),
         expected_results: proposal.expected_results || [],
         process_steps: proposal.process_steps || [],
         contact_block: proposal.contact_block || {
