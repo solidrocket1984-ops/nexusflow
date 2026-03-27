@@ -1,400 +1,490 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Check,
-  Copy,
-  Eye,
-  FilePlus2,
-  Loader2,
-  Pencil,
-  Plus,
-  Printer,
-  Save,
-  Send,
-  X,
-} from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import enllacLogo from '@/assets/enllac-digital-logo.svg';
 import {
   buildDefaultProposalSections,
-  calculatePricingRow,
-  calculatePricingTotals,
-  DEFAULT_TEMPLATE_NAME,
-  getProposalClientName,
-  PROPOSAL_STATUS_LABELS,
-  serializeProposalForCopy,
+  calculateProposalTotals,
+  serializeProposalPayload,
 } from '@/lib/proposalUtils';
 
-const templates = [
-  {
-    key: 'default_enllac_assistent',
-    name: DEFAULT_TEMPLATE_NAME,
-    description: 'Plantilla principal inspirada en la proposta de referència d’Enllaç Digital.',
-  },
-];
+import enllacLogo from '@/assets/enllac-digital-logo.png';
 
-const emptyArrayFallback = (arr, fallback) => (Array.isArray(arr) && arr.length > 0 ? arr : fallback);
-
-export default function ProposalModal({ lead, proposal: sourceProposal, onClose }) {
-  const [selectedTemplate, setSelectedTemplate] = useState(sourceProposal?.template_name || templates[0].name);
-  const [generating, setGenerating] = useState(false);
+export default function ProposalModal({ lead, proposal, onClose }) {
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState(sourceProposal ? 'preview' : 'edit');
-  const [proposalId, setProposalId] = useState(sourceProposal?.id || null);
+  const [preview, setPreview] = useState(false);
 
-  const defaults = useMemo(() => buildDefaultProposalSections(lead), [lead]);
+  const initialValues = useMemo(() => {
+    if (proposal) {
+      return {
+        title: proposal.title || '',
+        client_name: proposal.client_name || '',
+        subtitle: proposal.subtitle || '',
+        summary: proposal.summary || '',
+        plantejament: proposal.plantejament || proposal.problem || '',
+        included_items: proposal.included_items || [],
+        implementation_steps: proposal.implementation_steps || [],
+        pricing_rows: proposal.pricing_rows || [],
+        expected_results: proposal.expected_results || [],
+        process_steps: proposal.process_steps || [],
+        contact_block: proposal.contact_block || {
+          phone: '686 373 615',
+          email: 'xavi@enllacdigital.cat',
+          service_model: 'Implantació inicial + quota mensual · Optimització i seguiment inclosos',
+        },
+        status: proposal.status || 'draft',
+        notes: proposal.notes || '',
+      };
+    }
 
-  const [form, setForm] = useState(() => ({
-    ...defaults,
-    ...sourceProposal,
-    client_name: sourceProposal?.client_name || getProposalClientName(lead),
-    template_name: sourceProposal?.template_name || templates[0].name,
-    solution_items: emptyArrayFallback(sourceProposal?.solution_items, defaults.solution_items),
-    implementation_steps: emptyArrayFallback(sourceProposal?.implementation_steps, defaults.implementation_steps),
-    expected_results: emptyArrayFallback(sourceProposal?.expected_results, defaults.expected_results),
-    process_steps: emptyArrayFallback(sourceProposal?.process_steps, defaults.process_steps),
-    pricing_rows: emptyArrayFallback(sourceProposal?.pricing_rows, defaults.pricing_rows),
-    contact_block: {
-      ...defaults.contact_block,
-      ...(sourceProposal?.contact_block || {}),
-    },
-    status: sourceProposal?.status || 'draft',
-    generated_from_lead: sourceProposal?.generated_from_lead ?? true,
-  }));
-
-  const pricingRows = useMemo(() => form.pricing_rows.map(calculatePricingRow), [form.pricing_rows]);
-  const pricingTotals = useMemo(() => calculatePricingTotals(pricingRows), [pricingRows]);
-
-  const setListItem = (key, index, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: prev[key].map((item, i) => (i === index ? value : item)),
-    }));
-  };
-
-  const addListItem = (key) => setForm((prev) => ({ ...prev, [key]: [...(prev[key] || []), ''] }));
-
-  const removeListItem = (key, index) => {
-    setForm((prev) => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
-  };
-
-  const generateFromTemplate = async () => {
-    setGenerating(true);
-    const generated = buildDefaultProposalSections(lead);
-    setForm((prev) => ({
-      ...prev,
-      ...generated,
-      template_name: selectedTemplate,
-      client_name: getProposalClientName(lead),
-      generated_from_lead: true,
+    return {
+      ...buildDefaultProposalSections(lead),
       status: 'draft',
-      version: Number(prev.version || 1),
-    }));
+    };
+  }, [lead, proposal]);
 
-    await base44.entities.Activity.create({
-      lead_id: lead.id,
-      project_id: lead.project_id || 'enllac_digital',
-      type: 'proposal',
-      subject: 'Proposta generada des de plantilla',
-      summary: `Plantilla aplicada: ${selectedTemplate}`,
-      activity_date: new Date().toISOString(),
-      auto_generated: true,
-    });
+  const [values, setValues] = useState(initialValues);
 
-    setGenerating(false);
-    setViewMode('edit');
+  useEffect(() => {
+    setValues(initialValues);
+  }, [initialValues]);
+
+  const totals = useMemo(
+    () => calculateProposalTotals(values.pricing_rows || []),
+    [values.pricing_rows]
+  );
+
+  const setField = (field, value) => {
+    setValues((prev) => ({ ...prev, [field]: value }));
   };
 
-  const persistProposal = async (status) => {
+  const setArrayItem = (field, index, value) => {
+    setValues((prev) => {
+      const next = [...(prev[field] || [])];
+      next[index] = value;
+      return { ...prev, [field]: next };
+    });
+  };
+
+  const addArrayItem = (field, value = '') => {
+    setValues((prev) => ({
+      ...prev,
+      [field]: [...(prev[field] || []), value],
+    }));
+  };
+
+  const removeArrayItem = (field, index) => {
+    setValues((prev) => ({
+      ...prev,
+      [field]: (prev[field] || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const setPricingRow = (index, key, value) => {
+    setValues((prev) => {
+      const next = [...(prev.pricing_rows || [])];
+      next[index] = { ...next[index], [key]: value };
+      return { ...prev, pricing_rows: next };
+    });
+  };
+
+  const addPricingRow = () => {
+    setValues((prev) => ({
+      ...prev,
+      pricing_rows: [...(prev.pricing_rows || []), { concept: '', base: 0, vat: 0.21 }],
+    }));
+  };
+
+  const removePricingRow = (index) => {
+    setValues((prev) => ({
+      ...prev,
+      pricing_rows: (prev.pricing_rows || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const saveProposal = async (statusOverride) => {
     setSaving(true);
-    const payload = {
-      ...form,
-      lead_id: lead.id,
-      project_id: lead.project_id || 'enllac_digital',
-      template_name: selectedTemplate,
-      pricing_rows: pricingRows,
-      status,
-      title: form.title || `Proposta d’assistent digital per a ${form.cover_sector_label || 'la teva empresa'}`,
-      sent_date: status === 'sent' ? (form.sent_date || format(new Date(), 'yyyy-MM-dd')) : form.sent_date,
-      version: Number(form.version || 1),
-      generated_from_lead: true,
-      proposal_total: pricingTotals.total,
-    };
+    try {
+      const payload = serializeProposalPayload(
+        {
+          ...values,
+          status: statusOverride || values.status || 'draft',
+          pricing_rows: totals.rows,
+        },
+        lead
+      );
 
-    let saved;
-    if (proposalId) {
-      saved = await base44.entities.Proposal.update(proposalId, payload);
-    } else {
-      saved = await base44.entities.Proposal.create(payload);
-      setProposalId(saved?.id);
+      let saved;
+      if (proposal?.id) {
+        saved = await base44.entities.Proposal.update(proposal.id, payload);
+      } else {
+        saved = await base44.entities.Proposal.create(payload);
+      }
+
+      if ((statusOverride || values.status) === 'sent') {
+        const today = new Date().toISOString();
+
+        await base44.entities.Lead.update(lead.id, {
+          proposal_status: 'sent',
+          proposal_date: lead.proposal_date || today.slice(0, 10),
+          pipeline_status: 'propuesta_enviada',
+        });
+
+        await base44.entities.Activity.create({
+          lead_id: lead.id,
+          type: 'proposal',
+          subject: 'Proposta enviada',
+          summary: payload.title,
+          activity_date: today,
+          auto_generated: true,
+        });
+
+        await base44.entities.Task.create({
+          title: `Seguiment proposta: ${payload.title}`,
+          lead_id: lead.id,
+          project_id: lead.project_id,
+          due_date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+          type: 'seguiment',
+          priority: 'alta',
+          source: 'crm_rule',
+          completed: false,
+        });
+      }
+
+      onClose?.(saved);
+    } finally {
+      setSaving(false);
     }
-
-    const leadPatch = {
-      proposal_status: status,
-      proposal_date: lead.proposal_date || format(new Date(), 'yyyy-MM-dd'),
-      proposal_amount: pricingTotals.total,
-      pipeline_status: status === 'sent' ? 'propuesta_enviada' : lead.pipeline_status,
-    };
-
-    await base44.entities.Lead.update(lead.id, leadPatch);
-
-    if (status === 'sent') {
-      await base44.entities.Task.create({
-        title: `Follow-up proposta: ${payload.title}`,
-        description: 'Revisar resposta del client després de l’enviament de la proposta.',
-        lead_id: lead.id,
-        project_id: lead.project_id || 'enllac_digital',
-        due_date: format(new Date(Date.now() + 5 * 86400000), 'yyyy-MM-dd'),
-        type: 'propuesta',
-        priority: 'alta',
-        source: 'crm_rule',
-        completed: false,
-      });
-    }
-
-    await base44.entities.Activity.create({
-      lead_id: lead.id,
-      project_id: lead.project_id || 'enllac_digital',
-      type: 'proposal',
-      subject: `Proposta ${PROPOSAL_STATUS_LABELS[status]?.toLowerCase() || status}`,
-      summary: payload.title,
-      activity_date: new Date().toISOString(),
-      auto_generated: true,
-    });
-
-    setForm((prev) => ({ ...prev, ...payload }));
-    setSaving(false);
-  };
-
-  const duplicateProposal = async () => {
-    const copyPayload = {
-      ...form,
-      id: undefined,
-      lead_id: lead.id,
-      project_id: lead.project_id || 'enllac_digital',
-      status: 'draft',
-      version: Number(form.version || 1) + 1,
-      pricing_rows: pricingRows,
-      template_name: selectedTemplate,
-      generated_from_lead: true,
-    };
-
-    await base44.entities.Proposal.create(copyPayload);
-    await base44.entities.Activity.create({
-      lead_id: lead.id,
-      type: 'proposal',
-      subject: 'Proposta duplicada',
-      summary: `${copyPayload.title} (v${copyPayload.version})`,
-      activity_date: new Date().toISOString(),
-      auto_generated: true,
-    });
-  };
-
-  const copyContent = async () => {
-    await navigator.clipboard.writeText(serializeProposalForCopy({ ...form, pricing_rows: pricingRows }));
-  };
-
-  const updatePricingBase = (index, value) => {
-    const parsed = Number(value || 0);
-    setForm((prev) => ({
-      ...prev,
-      pricing_rows: prev.pricing_rows.map((row, i) => (i === index ? { ...row, base_imposable: parsed } : row)),
-    }));
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] overflow-auto">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-          <h2 className="font-bold text-slate-900">{sourceProposal ? 'Editar proposta' : 'Crear proposta'}</h2>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant={viewMode === 'edit' ? 'default' : 'outline'} onClick={() => setViewMode('edit')}><Pencil className="w-4 h-4 mr-1" />Editor</Button>
-            <Button size="sm" variant={viewMode === 'preview' ? 'default' : 'outline'} onClick={() => setViewMode('preview')}><Eye className="w-4 h-4 mr-1" />Vista prèvia</Button>
-            <button onClick={onClose}><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-6xl max-h-[92vh] overflow-auto rounded-2xl shadow-xl border border-slate-200">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {proposal ? 'Editar proposta' : 'Crear proposta'}
+            </h2>
+            <p className="text-sm text-slate-500">
+              Client: {values.client_name || lead?.company || lead?.contact_name || 'Sense nom'}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setPreview((v) => !v)}>
+              {preview ? 'Editar' : 'Vista prèvia'}
+            </Button>
+            <Button variant="outline" onClick={onClose}>Tancar</Button>
+            <Button variant="outline" disabled={saving} onClick={() => saveProposal('draft')}>
+              Desa esborrany
+            </Button>
+            <Button disabled={saving} onClick={() => saveProposal('sent')}>
+              Marcar com enviada
+            </Button>
           </div>
         </div>
 
-        {viewMode === 'edit' && (
-          <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div className="xl:col-span-2 space-y-3">
-              {!sourceProposal && (
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                  <p className="text-sm font-semibold text-slate-800">Plantilla</p>
-                  <select className="mt-1 w-full border rounded-md px-3 py-2 text-sm" value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)}>
-                    {templates.map((template) => <option key={template.key} value={template.name}>{template.name}</option>)}
-                  </select>
-                  <p className="text-xs text-slate-500 mt-1">{templates.find((t) => t.name === selectedTemplate)?.description}</p>
-                  <Button size="sm" className="mt-2" onClick={generateFromTemplate} disabled={generating}>{generating ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Generant...</> : <><FilePlus2 className="w-4 h-4 mr-1" />Generar des de plantilla</>}</Button>
-                </div>
-              )}
+        {!preview ? (
+          <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section className="space-y-4">
+              <TextField label="Títol" value={values.title} onChange={(v) => setField('title', v)} />
+              <TextField label="Nom del client" value={values.client_name} onChange={(v) => setField('client_name', v)} />
+              <TextField label="Subtítol" value={values.subtitle} onChange={(v) => setField('subtitle', v)} />
+              <TextAreaField label="Resum" value={values.summary} onChange={(v) => setField('summary', v)} rows={3} />
+              <TextAreaField label="Plantejament" value={values.plantejament} onChange={(v) => setField('plantejament', v)} rows={8} />
+              <ArrayEditor
+                label="Què inclou la solució"
+                items={values.included_items || []}
+                onAdd={() => addArrayItem('included_items')}
+                onChange={(i, v) => setArrayItem('included_items', i, v)}
+                onRemove={(i) => removeArrayItem('included_items', i)}
+              />
+              <ArrayEditor
+                label="Implantació i posada en marxa"
+                items={values.implementation_steps || []}
+                onAdd={() => addArrayItem('implementation_steps')}
+                onChange={(i, v) => setArrayItem('implementation_steps', i, v)}
+                onRemove={(i) => removeArrayItem('implementation_steps', i)}
+              />
+            </section>
 
-              <Field label="Nom del client"><Input value={form.client_name || ''} onChange={(e) => setForm((p) => ({ ...p, client_name: e.target.value }))} /></Field>
-              <Field label="Títol de la proposta"><Input value={form.title || ''} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} /></Field>
-              <Field label="Subtítol"><Textarea value={form.subtitle || ''} onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))} /></Field>
-              <Field label="Plantejament"><Textarea rows={5} value={form.plantejament || ''} onChange={(e) => setForm((p) => ({ ...p, plantejament: e.target.value, summary: e.target.value }))} /></Field>
+            <section className="space-y-4">
+              <PricingEditor
+                rows={values.pricing_rows || []}
+                onChange={setPricingRow}
+                onAdd={addPricingRow}
+                onRemove={removePricingRow}
+                totals={totals}
+              />
 
-              <EditableList title="Què inclou la solució" items={form.solution_items || []} onAdd={() => addListItem('solution_items')} onRemove={(index) => removeListItem('solution_items', index)} onChange={(index, value) => setListItem('solution_items', index, value)} />
-              <EditableList title="Implantació i posada en marxa" items={form.implementation_steps || []} onAdd={() => addListItem('implementation_steps')} onRemove={(index) => removeListItem('implementation_steps', index)} onChange={(index, value) => setListItem('implementation_steps', index, value)} />
+              <ArrayEditor
+                label="Resultat esperat"
+                items={values.expected_results || []}
+                onAdd={() => addArrayItem('expected_results')}
+                onChange={(i, v) => setArrayItem('expected_results', i, v)}
+                onRemove={(i) => removeArrayItem('expected_results', i)}
+              />
 
-              <div className="rounded-xl border border-slate-200 p-3 space-y-2">
-                <p className="text-sm font-semibold">Condicions econòmiques</p>
-                {(form.pricing_rows || []).map((row, idx) => {
-                  const calc = calculatePricingRow(row);
-                  return (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-                      <Field label="Concepte"><Input value={row.concepte || ''} onChange={(e) => setForm((p) => ({ ...p, pricing_rows: p.pricing_rows.map((it, i) => i === idx ? { ...it, concepte: e.target.value } : it) }))} /></Field>
-                      <Field label="Base imposable"><Input type="number" value={row.base_imposable ?? 0} onChange={(e) => updatePricingBase(idx, e.target.value)} /></Field>
-                      <Field label="IVA 21%"><Input value={calc.iva} readOnly /></Field>
-                      <Field label="Total"><Input value={calc.total} readOnly /></Field>
-                      <Button variant="outline" size="sm" onClick={() => removeListItem('pricing_rows', idx)}>Eliminar</Button>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" size="sm" onClick={() => setForm((p) => ({ ...p, pricing_rows: [...(p.pricing_rows || []), { concepte: '', base_imposable: 0 }] }))}><Plus className="w-4 h-4 mr-1" />Afegir fila</Button>
-                <div className="text-sm text-slate-600">
-                  <p>Base total: <strong>{pricingTotals.base.toFixed(2)}€</strong></p>
-                  <p>IVA total: <strong>{pricingTotals.iva.toFixed(2)}€</strong></p>
-                  <p>Total: <strong>{pricingTotals.total.toFixed(2)}€</strong></p>
-                </div>
+              <ArrayEditor
+                label="Procés de treball"
+                items={values.process_steps || []}
+                onAdd={() => addArrayItem('process_steps')}
+                onChange={(i, v) => setArrayItem('process_steps', i, v)}
+                onRemove={(i) => removeArrayItem('process_steps', i)}
+                numbered
+              />
+
+              <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+                <h3 className="font-medium text-slate-900">Contacte</h3>
+                <TextField
+                  label="Telèfon"
+                  value={values.contact_block?.phone || ''}
+                  onChange={(v) =>
+                    setField('contact_block', { ...values.contact_block, phone: v })
+                  }
+                />
+                <TextField
+                  label="Correu"
+                  value={values.contact_block?.email || ''}
+                  onChange={(v) =>
+                    setField('contact_block', { ...values.contact_block, email: v })
+                  }
+                />
+                <TextAreaField
+                  label="Model de servei"
+                  value={values.contact_block?.service_model || ''}
+                  onChange={(v) =>
+                    setField('contact_block', { ...values.contact_block, service_model: v })
+                  }
+                  rows={3}
+                />
               </div>
 
-              <EditableList title="Resultat esperat" items={form.expected_results || []} onAdd={() => addListItem('expected_results')} onRemove={(index) => removeListItem('expected_results', index)} onChange={(index, value) => setListItem('expected_results', index, value)} />
-              <EditableList title="Procés de treball" items={form.process_steps || []} onAdd={() => addListItem('process_steps')} onRemove={(index) => removeListItem('process_steps', index)} onChange={(index, value) => setListItem('process_steps', index, value)} numbered />
-
-              <div className="rounded-xl border border-slate-200 p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                <Field label="Contacte (persona)"><Input value={form.contact_block?.persona || ''} onChange={(e) => setForm((p) => ({ ...p, contact_block: { ...p.contact_block, persona: e.target.value } }))} /></Field>
-                <Field label="Contacte (email)"><Input value={form.contact_block?.email || ''} onChange={(e) => setForm((p) => ({ ...p, contact_block: { ...p.contact_block, email: e.target.value } }))} /></Field>
-                <Field label="Contacte (telèfon)"><Input value={form.contact_block?.phone || ''} onChange={(e) => setForm((p) => ({ ...p, contact_block: { ...p.contact_block, phone: e.target.value } }))} /></Field>
-                <Field label="Model de servei"><Input value={form.contact_block?.model_servei || ''} onChange={(e) => setForm((p) => ({ ...p, contact_block: { ...p.contact_block, model_servei: e.target.value } }))} /></Field>
-              </div>
-
-              <Field label="Notes internes"><Textarea rows={4} value={form.notes || ''} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} /></Field>
-            </div>
-
-            <div className="space-y-2">
-              <StatusPill status={form.status} />
-              <Button className="w-full" onClick={() => persistProposal('draft')} disabled={saving}><Save className="w-4 h-4 mr-1" />Desa esborrany</Button>
-              <Button className="w-full" variant="outline" onClick={() => persistProposal('ready')} disabled={saving}><Check className="w-4 h-4 mr-1" />Marcar com preparada</Button>
-              <Button className="w-full" variant="outline" onClick={() => persistProposal('sent')} disabled={saving}><Send className="w-4 h-4 mr-1" />Marcar com enviada</Button>
-              <Button className="w-full" variant="outline" onClick={() => persistProposal('accepted')} disabled={saving}>Marcar com acceptada</Button>
-              <Button className="w-full" variant="outline" onClick={() => persistProposal('rejected')} disabled={saving}>Marcar com rebutjada</Button>
-              <Button className="w-full" variant="outline" onClick={duplicateProposal}>Duplicar proposta</Button>
-              <Button className="w-full" variant="outline" onClick={copyContent}><Copy className="w-4 h-4 mr-1" />Copiar contingut</Button>
-              <Button className="w-full" variant="outline" onClick={() => { setViewMode('preview'); window.setTimeout(() => window.print(), 250); }}><Printer className="w-4 h-4 mr-1" />Exportar PDF</Button>
-            </div>
+              <TextAreaField
+                label="Notes internes"
+                value={values.notes || ''}
+                onChange={(v) => setField('notes', v)}
+                rows={4}
+              />
+            </section>
+          </div>
+        ) : (
+          <div className="p-6 bg-slate-50">
+            <ProposalPreview values={values} totals={totals} logoSrc={enllacLogo} />
           </div>
         )}
-
-        {viewMode === 'preview' && <ProposalPreview proposal={{ ...form, pricing_rows: pricingRows }} />}
       </div>
     </div>
   );
 }
 
-function StatusPill({ status }) {
-  return <div className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 inline-flex">Estat: {PROPOSAL_STATUS_LABELS[status] || status}</div>;
-}
-
-function Field({ label, children }) {
-  return <div><p className="text-xs text-slate-500 mb-1">{label}</p>{children}</div>;
-}
-
-function EditableList({ title, items, onAdd, onRemove, onChange, numbered = false }) {
+function ProposalPreview({ values, totals, logoSrc }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
-      <p className="text-sm font-semibold mb-2">{title}</p>
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div key={`${title}-${index}`} className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 w-6">{numbered ? `${index + 1}.` : '•'}</span>
-            <Input value={item} onChange={(e) => onChange(index, e.target.value)} />
-            <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>X</Button>
+    <div className="max-w-4xl mx-auto bg-white border border-slate-200 shadow-sm rounded-xl p-10 space-y-8">
+      <div className="text-center space-y-4">
+        <img src={logoSrc} alt="Enllaç Digital" className="h-24 mx-auto object-contain" />
+        <div>
+          <p className="text-3xl font-semibold text-slate-700">{values.title}</p>
+          <p className="text-5xl font-bold text-[#a00019] mt-3">{values.client_name}</p>
+          <p className="text-xl italic text-slate-500 mt-4">{values.subtitle}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mt-8">
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <p className="font-semibold text-[#a00019]">Contacte</p>
+            <p>{values.contact_block?.phone}</p>
+            <p>{values.contact_block?.email}</p>
           </div>
-        ))}
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <p className="font-semibold text-[#a00019]">Model de servei</p>
+            <p>{values.contact_block?.service_model}</p>
+          </div>
+        </div>
+
+        <p className="text-slate-500">Document de proposta</p>
       </div>
-      <Button size="sm" variant="outline" className="mt-2" onClick={onAdd}><Plus className="w-4 h-4 mr-1" />Afegir</Button>
-    </div>
-  );
-}
 
-function ProposalPreview({ proposal }) {
-  const totals = calculatePricingTotals(proposal.pricing_rows || []);
+      <Section title="1. Plantejament">
+        <p className="whitespace-pre-wrap">{values.plantejament}</p>
+      </Section>
 
-  return (
-    <div className="p-6 md:p-10 bg-slate-100 print:bg-white">
-      <article className="max-w-4xl mx-auto bg-white border border-slate-200 rounded-xl p-8 space-y-6 print:border-0 print:shadow-none">
-        <header className="border-b border-slate-200 pb-4">
-          <img src={enllacLogo} alt="Enllaç Digital" className="h-12 object-contain" />
-          <p className="text-2xl font-bold text-slate-900 mt-4">{proposal.title}</p>
-          <p className="text-lg text-slate-700 mt-1">{proposal.client_name}</p>
-          <p className="text-sm text-slate-500 mt-2">{proposal.subtitle}</p>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
-            <p><strong>Contacte:</strong> {proposal.contact_block?.persona} · {proposal.contact_block?.email}</p>
-            <p><strong>Model de servei:</strong> {proposal.contact_block?.model_servei}</p>
-            <p><strong>Document:</strong> {proposal.contact_block?.tipus_document || 'Document de proposta'}</p>
-            <p><strong>Data:</strong> {proposal.contact_block?.generated_on || format(new Date(), 'yyyy-MM-dd')}</p>
-          </div>
-        </header>
+      <Section title="2. Què inclou la solució">
+        <ul className="list-disc ml-6 space-y-1">
+          {(values.included_items || []).map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </Section>
 
-        <Section title="Plantejament"><p className="text-sm whitespace-pre-wrap">{proposal.plantejament || proposal.summary}</p></Section>
-        <Section title="Què inclou la solució"><ul className="list-disc ml-5 text-sm space-y-1">{(proposal.solution_items || []).map((item, i) => <li key={i}>{item}</li>)}</ul></Section>
-        <Section title="Implantació i posada en marxa"><ul className="list-disc ml-5 text-sm space-y-1">{(proposal.implementation_steps || []).map((item, i) => <li key={i}>{item}</li>)}</ul></Section>
+      <Section title="3. Implantació i posada en marxa">
+        <ul className="list-disc ml-6 space-y-1">
+          {(values.implementation_steps || []).map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </Section>
 
-        <Section title="Condicions econòmiques">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-left">
-                <th className="py-1">Concepte</th>
-                <th className="py-1">Base imposable</th>
-                <th className="py-1">IVA 21%</th>
-                <th className="py-1">Total</th>
+      <Section title="4. Condicions econòmiques">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border border-slate-200">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="text-left p-2 border-b">Concepte</th>
+                <th className="text-right p-2 border-b">Base imposable</th>
+                <th className="text-right p-2 border-b">IVA 21%</th>
+                <th className="text-right p-2 border-b">Total</th>
               </tr>
             </thead>
             <tbody>
-              {(proposal.pricing_rows || []).map((row, idx) => (
-                <tr key={idx} className="border-b border-slate-100">
-                  <td className="py-1">{row.concepte}</td>
-                  <td className="py-1">{Number(row.base_imposable || 0).toFixed(2)}€</td>
-                  <td className="py-1">{Number(row.iva || 0).toFixed(2)}€</td>
-                  <td className="py-1 font-semibold">{Number(row.total || 0).toFixed(2)}€</td>
+              {totals.rows.map((row, i) => (
+                <tr key={i}>
+                  <td className="p-2 border-b">{row.concept}</td>
+                  <td className="p-2 border-b text-right">{formatEuro(row.base)}</td>
+                  <td className="p-2 border-b text-right">{formatEuro(row.vatAmount)}</td>
+                  <td className="p-2 border-b text-right">{formatEuro(row.total)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="font-semibold">
-                <td>Total</td>
-                <td>{totals.base.toFixed(2)}€</td>
-                <td>{totals.iva.toFixed(2)}€</td>
-                <td>{totals.total.toFixed(2)}€</td>
+            <tfoot className="bg-slate-50 font-semibold">
+              <tr>
+                <td className="p-2">Total</td>
+                <td className="p-2 text-right">{formatEuro(totals.baseTotal)}</td>
+                <td className="p-2 text-right">{formatEuro(totals.vatTotal)}</td>
+                <td className="p-2 text-right">{formatEuro(totals.grandTotal)}</td>
               </tr>
             </tfoot>
           </table>
-        </Section>
+        </div>
+      </Section>
 
-        <Section title="Resultat esperat"><ul className="list-disc ml-5 text-sm space-y-1">{(proposal.expected_results || []).map((item, i) => <li key={i}>{item}</li>)}</ul></Section>
-        <Section title="Procés de treball"><ol className="list-decimal ml-5 text-sm space-y-1">{(proposal.process_steps || []).map((item, i) => <li key={i}>{item}</li>)}</ol></Section>
+      <Section title="5. Resultat esperat">
+        <ul className="list-disc ml-6 space-y-1">
+          {(values.expected_results || []).map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </Section>
 
-        <Section title="Contacte">
-          <div className="text-sm text-slate-700">
-            <p>{proposal.contact_block?.empresa || 'Enllaç Digital'}</p>
-            <p>{proposal.contact_block?.persona}</p>
-            <p>{proposal.contact_block?.email} · {proposal.contact_block?.phone}</p>
-            <p>{proposal.contact_block?.website}</p>
-          </div>
-        </Section>
-      </article>
+      <Section title="6. Procés de treball">
+        <ol className="list-decimal ml-6 space-y-1">
+          {(values.process_steps || []).map((item, i) => <li key={i}>{item}</li>)}
+        </ol>
+      </Section>
+
+      <Section title="7. Contacte">
+        <p>Telèfon: {values.contact_block?.phone}</p>
+        <p>Correu electrònic: {values.contact_block?.email}</p>
+      </Section>
     </div>
   );
 }
 
 function Section({ title, children }) {
   return (
-    <section>
-      <h3 className="text-base font-semibold text-slate-900 mb-2">{title}</h3>
-      {children}
+    <section className="space-y-3">
+      <h3 className="text-2xl font-bold text-[#a00019]">{title}</h3>
+      <div className="text-slate-700 text-base leading-7">{children}</div>
     </section>
   );
+}
+
+function TextField({ label, value, onChange }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-slate-700">{label}</p>
+      <input
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({ label, value, onChange, rows = 4 }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-slate-700">{label}</p>
+      <textarea
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        rows={rows}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function ArrayEditor({ label, items, onAdd, onChange, onRemove, numbered = false }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium text-slate-900">{label}</h3>
+        <Button size="sm" variant="outline" onClick={onAdd}>Afegir</Button>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-2 items-start">
+            <div className="text-sm text-slate-400 pt-2 w-6">{numbered ? `${i + 1}.` : '•'}</div>
+            <textarea
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              rows={2}
+              value={item || ''}
+              onChange={(e) => onChange(i, e.target.value)}
+            />
+            <Button size="sm" variant="outline" onClick={() => onRemove(i)}>Eliminar</Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PricingEditor({ rows, onChange, onAdd, onRemove, totals }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium text-slate-900">Condicions econòmiques</h3>
+        <Button size="sm" variant="outline" onClick={onAdd}>Afegir línia</Button>
+      </div>
+
+      <div className="space-y-3">
+        {rows.map((row, i) => (
+          <div key={i} className="grid grid-cols-12 gap-2 items-end">
+            <div className="col-span-6">
+              <TextField
+                label="Concepte"
+                value={row.concept}
+                onChange={(v) => onChange(i, 'concept', v)}
+              />
+            </div>
+            <div className="col-span-2">
+              <TextField
+                label="Base"
+                value={row.base}
+                onChange={(v) => onChange(i, 'base', Number(v || 0))}
+              />
+            </div>
+            <div className="col-span-2">
+              <TextField
+                label="IVA"
+                value={row.vat}
+                onChange={(v) => onChange(i, 'vat', Number(v || 0))}
+              />
+            </div>
+            <div className="col-span-2">
+              <Button size="sm" variant="outline" onClick={() => onRemove(i)}>Eliminar</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-sm text-slate-600 space-y-1 border-t border-slate-200 pt-3">
+        <p>Base total: {formatEuro(totals.baseTotal)}</p>
+        <p>IVA total: {formatEuro(totals.vatTotal)}</p>
+        <p className="font-semibold text-slate-900">Total: {formatEuro(totals.grandTotal)}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatEuro(value) {
+  return new Intl.NumberFormat('ca-ES', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(Number(value || 0));
 }
