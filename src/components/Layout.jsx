@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, CheckSquare, Lightbulb, Calendar, Menu, X, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, CheckSquare, Lightbulb, Calendar, FolderKanban, Menu, Settings, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/Dashboard', icon: LayoutDashboard, label: 'Tauler' },
   { path: '/Leads', icon: Users, label: 'Contactes / Leads' },
+  { path: '/Projects', icon: FolderKanban, label: 'Projectes' },
   { path: '/Tasks', icon: CheckSquare, label: 'Tasques' },
   { path: '/Suggestions', icon: Lightbulb, label: 'Suggeriments' },
   { path: '/Agenda', icon: Calendar, label: 'Agenda' },
-  { path: '/SettingsPage', icon: Calendar, label: 'Configuració' },
+  { path: '/SettingsPage', icon: Settings, label: 'Configuració' },
 ];
 
 export default function Layout() {

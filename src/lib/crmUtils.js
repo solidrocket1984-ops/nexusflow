@@ -1,4 +1,5 @@
 import { endOfMonth, endOfWeek, format, isValid, parseISO } from 'date-fns';
+import { getProjectName, normalizeProjectId } from '@/lib/projects';
 
 export const ENLLAC_PROJECT_ID = 'enllac_digital';
 
@@ -37,7 +38,7 @@ export function dateDiffDays(fromDate, toDateValue = new Date()) {
 export function normalizeLead(lead = {}) {
   const normalized = {
     ...lead,
-    project_id: lead.project_id || ENLLAC_PROJECT_ID,
+    project_id: normalizeProjectId(lead.project_id || ENLLAC_PROJECT_ID),
     company: lead.company || '',
     contact_name: lead.contact_name || lead.name || '',
     lead_status: lead.lead_status || 'active',
@@ -46,6 +47,8 @@ export function normalizeLead(lead = {}) {
     urgency: lead.urgency || 'media',
     pipeline_status: normalizeStatus(lead.pipeline_status) || 'nuevo',
   };
+
+  normalized.project = lead.project || getProjectName(normalized.project_id, lead.project || 'Enllaç Digital');
 
   normalized.duplicate_key = lead.duplicate_key || buildDuplicateKey(normalized);
 
