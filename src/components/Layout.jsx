@@ -1,16 +1,46 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, CheckSquare, Lightbulb, Calendar, FolderKanban, Menu, Settings, X, Zap } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  CheckSquare,
+  Lightbulb,
+  Calendar,
+  FolderKanban,
+  Menu,
+  Settings,
+  X,
+  Zap,
+  UserCheck,
+  Receipt,
+  Repeat,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { path: '/Dashboard', icon: LayoutDashboard, label: 'Tauler' },
-  { path: '/Leads', icon: Users, label: 'Contactes / Leads' },
-  { path: '/Projects', icon: FolderKanban, label: 'Projectes' },
-  { path: '/Tasks', icon: CheckSquare, label: 'Tasques' },
-  { path: '/Suggestions', icon: Lightbulb, label: 'Suggeriments' },
-  { path: '/Agenda', icon: Calendar, label: 'Agenda' },
-  { path: '/SettingsPage', icon: Settings, label: 'Configuració' },
+const navSections = [
+  {
+    title: 'Comercial',
+    items: [
+      { path: '/Dashboard', icon: LayoutDashboard, label: 'Tauler' },
+      { path: '/Leads', icon: Users, label: 'Contactes / Leads' },
+      { path: '/Projects', icon: FolderKanban, label: 'Projectes' },
+      { path: '/Tasks', icon: CheckSquare, label: 'Tasques' },
+      { path: '/Suggestions', icon: Lightbulb, label: 'Suggeriments' },
+      { path: '/Agenda', icon: Calendar, label: 'Agenda' },
+    ],
+  },
+  {
+    title: 'Finances',
+    items: [
+      { path: '/Clients', icon: UserCheck, label: 'Clients' },
+      { path: '/Invoices', icon: Receipt, label: 'Factures' },
+      { path: '/Billing', icon: Repeat, label: 'Cobraments recurrents' },
+    ],
+  },
+  {
+    title: 'Sistema',
+    items: [{ path: '/SettingsPage', icon: Settings, label: 'Configuració' }],
+  },
 ];
 
 export default function Layout() {
@@ -32,51 +62,62 @@ export default function Layout() {
         </button>
       </header>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
       )}
 
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out",
-        "lg:translate-x-0",
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <aside
+        className={cn(
+          'fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out overflow-y-auto',
+          'lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
         <div className="p-5 flex items-center gap-3 border-b border-slate-100">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-bold text-slate-900 text-base">Enllaç Digital</h1>
-            <p className="text-[11px] text-slate-400 font-medium tracking-wide">CRM COMERCIAL</p>
+            <p className="text-[11px] text-slate-400 font-medium tracking-wide">CRM 360</p>
           </div>
         </div>
 
-        <nav className="p-3 space-y-0.5 mt-2">
-          {navItems.map(item => {
-            const active = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                  active
-                    ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                )}
-              >
-                <item.icon className={cn("w-[18px] h-[18px]", active ? "text-white" : "text-slate-400")} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="p-3 space-y-4 mt-2">
+          {navSections.map((section) => (
+            <div key={section.title}>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 px-3 mb-1 font-semibold">
+                {section.title}
+              </p>
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                        active
+                          ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      )}
+                    >
+                      <item.icon className={cn('w-[18px] h-[18px]', active ? 'text-white' : 'text-slate-400')} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 
-      {/* Main content */}
       <main className="lg:pl-64 pt-14 lg:pt-0 min-h-screen">
         <div className="p-4 lg:p-8 max-w-[1400px] mx-auto">
           <Outlet />

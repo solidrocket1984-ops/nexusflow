@@ -17,10 +17,16 @@ import LeadDetail from './pages/LeadDetail';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 
+// Finances
+import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
+import Invoices from './pages/Invoices';
+import InvoiceDetail from './pages/InvoiceDetail';
+import Billing from './pages/Billing';
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -29,32 +35,39 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
 
-  // Render the main app
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/Dashboard" replace />} />
         <Route path="/Dashboard" element={<Dashboard />} />
 
+        {/* Comercial */}
         <Route path="/Leads" element={<Leads />} />
         <Route path="/Projects" element={<Projects />} />
         <Route path="/ProjectDetail" element={<ProjectDetail />} />
         <Route path="/Tasks" element={<Tasks />} />
         <Route path="/Suggestions" element={<Suggestions />} />
         <Route path="/Agenda" element={<Agenda />} />
-        <Route path="/SettingsPage" element={<SettingsPage />} />
         <Route path="/LeadDetail" element={<LeadDetail />} />
+
+        {/* Finances 360 */}
+        <Route path="/Clients" element={<Clients />} />
+        <Route path="/ClientDetail" element={<ClientDetail />} />
+        <Route path="/Invoices" element={<Invoices />} />
+        <Route path="/InvoiceDetail" element={<InvoiceDetail />} />
+        <Route path="/Billing" element={<Billing />} />
+
+        {/* Sistema */}
+        <Route path="/SettingsPage" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
@@ -63,7 +76,6 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
