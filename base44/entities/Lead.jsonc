@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Normalized key for dedup (email+phone+company)"
     },
+    "supabase_id": {
+      "type": "string",
+      "description": "Reference ID from Supabase (RespondeYA)"
+    },
     "project": {
       "type": "string",
       "description": "Project name (text)"
@@ -201,7 +205,6 @@
       "enum": [
         "none",
         "draft",
-        "ready",
         "sent",
         "viewed",
         "accepted",

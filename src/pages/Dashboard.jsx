@@ -1,13 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLeads, useTasks, useProposals } from '../components/shared/useAppData';
 import { isActiveInPipeline, isHot, isOverdue, isInactive, scoreLead, getTaskBucket } from '../lib/crmUtils';
 import ScoreExplanation from '../components/shared/ScoreExplanation';
+import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: leads = [] } = useLeads();
   const { data: tasks = [] } = useTasks();
   const { data: proposals = [] } = useProposals();
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+
+  const handleSyncRespondeya = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await base44.functions.invoke('syncLeadsFromRespondeya', {});
+      setSyncResult(res.data);
+    } catch (err) {
+      setSyncResult({ ok: false, error: String(err) });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const activeLeads = leads.filter(isActiveInPipeline);
   const hotLeads = activeLeads.filter(isHot);
@@ -27,9 +46,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-slate-900">Tauler · Enllaç Digital</h1>
-        <p className="text-sm text-slate-500 mt-1">Visió operativa per prioritzar contactes, tasques manuals i automàtiques.</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Tauler · Enllaç Digital</h1>
+          <p className="text-sm text-slate-500 mt-1">Visió operativa per prioritzar contactes, tasques manuals i automàtiques.</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Button size="sm" variant="outline" onClick={handleSyncRespondeya} disabled={syncing} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Sincronizando...' : 'Sync Leads RespondeYA'}
+          </Button>
+          {syncResult && (
+            <p className={`text-xs ${syncResult.ok ? 'text-green-700' : 'text-red-600'}`}>
+              {syncResult.ok
+                ? `✓ ${syncResult.synced} nuevos · ${syncResult.skipped} ya existían`
+                : `Error: ${syncResult.error}`}
+            </p>
+          )}
+        </div>
       </header>
 
       <section>
