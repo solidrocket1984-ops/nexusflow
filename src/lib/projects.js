@@ -13,6 +13,13 @@ export const PROJECT_CATALOG = [
     aliases: ['respondeya', '69b599c67e80030f60f34e94'],
     description: 'Canal complementari de leads i seguiment.',
   },
+  {
+    id: 'grup_living',
+    name: 'Grup Living',
+    color: '#059669',
+    aliases: ['grup_living', '69e94fc647c84646190db3d1'],
+    description: 'Client Grup Living / Living Sitges.',
+  },
 ];
 
 const aliasIndex = PROJECT_CATALOG.reduce((acc, project) => {

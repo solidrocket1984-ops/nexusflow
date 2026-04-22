@@ -47,6 +47,7 @@ import EditLeadModal from '../components/leads/EditLeadModal';
 import TaskEditorModal from '../components/tasks/TaskEditorModal';
 import ScoreExplanation from '../components/shared/ScoreExplanation';
 import ConvertToClientModal from '@/components/finance/ConvertToClientModal';
+import ClientFinancePanel from '@/components/leads/ClientFinancePanel';
 
 export default function LeadDetail() {
   const queryClient = useQueryClient();
@@ -412,7 +413,12 @@ export default function LeadDetail() {
         </TabsContent>
 
         <TabsContent value="finance" className="space-y-3 pt-3">
-          {contracts.length === 0 && invoices.length === 0 && schedules.length === 0 ? (
+          {isCustomer && (
+            <div className="border-b border-slate-200 pb-4 mb-2">
+              <ClientFinancePanel leadId={lead.id} />
+            </div>
+          )}
+          {contracts.length === 0 && invoices.length === 0 && schedules.length === 0 && !isCustomer ? (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-3">
               <p className="text-slate-500">Aquest lead encara no té contractes, factures ni cobraments recurrents.</p>
               <Button onClick={() => setShowConvert(true)}>

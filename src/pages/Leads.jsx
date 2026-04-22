@@ -21,6 +21,7 @@ import {
   scoreLead,
   temperatureColors,
 } from '../lib/crmUtils';
+import { PROJECT_CATALOG, normalizeProjectId } from '../lib/projects';
 
 export default function Leads() {
   const { data: leadData = [] } = useLeads();
@@ -29,6 +30,7 @@ export default function Leads() {
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('score');
+  const [projectFilter, setProjectFilter] = useState('all');
   const [filters, setFilters] = useState({
     pipeline_status: 'all',
     lead_status: 'all',
@@ -46,6 +48,7 @@ export default function Leads() {
     const rows = leads.filter((lead) => {
       if (filters.archived_only && !lead.is_archived) return false;
       if (!filters.archived_only && lead.is_archived) return false;
+      if (projectFilter !== 'all' && normalizeProjectId(lead.project_id) !== projectFilter) return false;
       const query = search.toLowerCase();
       if (query && ![lead.contact_name, lead.name, lead.company, lead.email, lead.phone].some((f) => f?.toLowerCase().includes(query))) return false;
       if (filters.pipeline_status !== 'all' && lead.pipeline_status !== filters.pipeline_status) return false;
@@ -69,7 +72,7 @@ export default function Leads() {
     };
 
     return rows.sort(sorters[sortBy]);
-  }, [leads, search, filters, sortBy]);
+  }, [leads, search, filters, sortBy, projectFilter]);
 
   const duplicateMap = useMemo(() => {
     const map = new Map();
@@ -89,21 +92,34 @@ export default function Leads() {
 
   return (
     <div className="space-y-4">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contactes / Leads · Enllaç Digital</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Contactes / Leads</h1>
           <p className="text-sm text-slate-500">{leads.filter(isActiveInPipeline).length} actius · {filtered.length} visibles</p>
         </div>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="score">Ordenar: score</SelectItem>
-            <SelectItem value="next_action_date">Pròxima acció</SelectItem>
-            <SelectItem value="priority">Prioritat</SelectItem>
-            <SelectItem value="weighted_value">Valor ponderat</SelectItem>
-            <SelectItem value="days_without_activity">Dies inactiu</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 flex-wrap">
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Tots els projectes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tots els projectes</SelectItem>
+              {PROJECT_CATALOG.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="score">Ordenar: score</SelectItem>
+              <SelectItem value="next_action_date">Pròxima acció</SelectItem>
+              <SelectItem value="priority">Prioritat</SelectItem>
+              <SelectItem value="weighted_value">Valor ponderat</SelectItem>
+              <SelectItem value="days_without_activity">Dies inactiu</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </header>
 
       <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">

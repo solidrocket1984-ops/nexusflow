@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLeads, useTasks, useProposals } from '../components/shared/useAppData';
 import { isActiveInPipeline, isHot, isOverdue, isInactive, scoreLead, getTaskBucket } from '../lib/crmUtils';
 import ScoreExplanation from '../components/shared/ScoreExplanation';
+import FinancialPanel from '../components/dashboard/FinancialPanel';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -94,6 +95,8 @@ export default function Dashboard() {
           <p className="text-xs text-slate-500">Veure factors de puntuació des de llista i detall.</p>
         </Link>
       </section>
+
+      <FinancialPanel />
 
       <DashboardList title="Accions prioritàries d'ara" items={nowList} empty="No hi ha leads crítics ara" renderItem={(lead) => (
         <div className="space-y-2" key={lead.id}>
