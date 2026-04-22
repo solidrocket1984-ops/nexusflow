@@ -133,20 +133,29 @@ export default function Leads() {
         {filtered.length === 0 && <div className="p-8 text-center text-slate-400">No s'han trobat leads</div>}
         {filtered.map((lead) => {
           const warnings = getDataQualityWarnings(lead);
+          const companyTitle = lead.company || lead.contact_name || lead.name || 'Sense empresa';
+          const contactSubtitle = lead.company ? (lead.contact_name || lead.name) : null;
           return (
             <div key={lead.id} className="p-3 lg:p-4 space-y-2">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <Link className="text-sm font-semibold text-slate-900 hover:text-blue-600" to={`/LeadDetail?id=${lead.id}`}>{lead.contact_name || lead.name || lead.company}</Link>
-                  <p className="text-xs text-slate-500">{lead.company || 'Sense empresa'} · {lead.email || lead.phone || 'Sense contacte'}</p>
+                <div className="min-w-0">
+                  <Link className="text-sm font-semibold text-slate-900 hover:text-blue-600" to={`/LeadDetail?id=${lead.id}`}>{companyTitle}</Link>
+                  {contactSubtitle && <p className="text-xs text-slate-600 font-medium">{contactSubtitle}</p>}
+                  <p className="text-xs text-slate-400">{lead.email || lead.phone || 'Sense contacte'}</p>
                 </div>
-                <div className="flex flex-col items-end gap-1"><span className="text-xs font-semibold text-slate-500">puntuació {scoreLead(lead)}</span><ScoreExplanation lead={lead} compact /></div>
+                <div className="flex flex-col items-end gap-1 shrink-0"><span className="text-xs font-semibold text-slate-500">puntuació {scoreLead(lead)}</span><ScoreExplanation lead={lead} compact /></div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {/* Pipeline status — color coded */}
                 <span className="text-[10px] font-semibold px-2 py-1 rounded-full text-white" style={{ backgroundColor: pipelineColors[lead.pipeline_status] || '#64748b' }}>{pipelineLabels[lead.pipeline_status] || lead.pipeline_status}</span>
+                {/* Lifecycle stage */}
+                <LifecycleBadge stage={lead.lifecycle_stage} />
+                {/* Project */}
+                {lead.project && <span className="text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600">📁 {lead.project}</span>}
+                {/* Temperature */}
                 {lead.temperature && <span className={`text-[10px] px-2 py-1 rounded-full ${temperatureColors[lead.temperature]?.bg} ${temperatureColors[lead.temperature]?.text}`}>{temperatureColors[lead.temperature]?.label || lead.temperature}</span>}
-                {isOverdue(lead) && <span className="text-[10px] px-2 py-1 rounded-full bg-red-100 text-red-700">Acció següent vençuda</span>}
-                {warnings.length > 0 && <span className="text-[10px] px-2 py-1 rounded-full bg-amber-100 text-amber-700">⚠ {warnings.length} alerta qualitat</span>}
+                {isOverdue(lead) && <span className="text-[10px] px-2 py-1 rounded-full bg-red-100 text-red-700">Acció vençuda</span>}
+                {warnings.length > 0 && <span className="text-[10px] px-2 py-1 rounded-full bg-amber-100 text-amber-700">⚠ {warnings.length} alerta</span>}
               </div>
               {warnings.length > 0 && <p className="text-xs text-amber-700">{warnings.join(' · ')}</p>}
               <div className="flex flex-wrap gap-1">
@@ -215,4 +224,18 @@ function QuickAction({ to, children }) {
 
 function QuickButton({ onClick, children }) {
   return <button onClick={onClick} className="inline-flex items-center text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50"><AlertTriangle className="w-3 h-3 mr-1 opacity-0" />{children}</button>;
+}
+
+const lifecycleConfig = {
+  lead:        { label: 'Lead',        className: 'bg-slate-100 text-slate-600' },
+  qualified:   { label: 'Qualificat',  className: 'bg-blue-100 text-blue-700' },
+  opportunity: { label: 'Oportunitat', className: 'bg-purple-100 text-purple-700' },
+  customer:    { label: 'Client',      className: 'bg-green-100 text-green-700' },
+  lost:        { label: 'Perdut',      className: 'bg-red-100 text-red-600' },
+};
+
+function LifecycleBadge({ stage }) {
+  if (!stage) return null;
+  const cfg = lifecycleConfig[stage] || { label: stage, className: 'bg-slate-100 text-slate-600' };
+  return <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${cfg.className}`}>{cfg.label}</span>;
 }

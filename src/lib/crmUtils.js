@@ -271,14 +271,14 @@ export const pipelineLabels = {
 };
 
 export const pipelineColors = {
-  nuevo: '#94a3b8',
-  contactado: '#60a5fa',
-  pendiente_respuesta: '#fbbf24',
-  reunion_agendada: '#a78bfa',
-  propuesta_enviada: '#6366f1',
-  negociacion: '#f97316',
-  ganado: '#10b981',
-  perdido: '#f87171',
+  nuevo: '#94a3b8',       // gris
+  contactado: '#3b82f6',  // azul
+  pendiente_respuesta: '#fbbf24', // amarillo
+  reunion_agendada: '#f97316',    // naranja
+  propuesta_enviada: '#8b5cf6',   // morado
+  negociacion: '#ec4899',         // rosa
+  ganado: '#10b981',     // verde
+  perdido: '#ef4444',    // rojo
 };
 
 export const temperatureColors = {
