@@ -1,6 +1,15 @@
 export const PROJECT_CATALOG = [
   {
+    id: 'maind',
+    realId: '69b599c67e80030f60f34e92',
+    name: 'Maind',
+    color: '#7c3aed',
+    aliases: ['maind', '69b599c67e80030f60f34e92'],
+    description: 'Projecte Maind.',
+  },
+  {
     id: 'enllac_digital',
+    realId: '69b599c67e80030f60f34e93',
     name: 'Enllaç Digital',
     color: '#4f46e5',
     aliases: ['enllac_digital', 'enlac_digital', '69b599c67e80030f60f34e93'],
@@ -8,17 +17,11 @@ export const PROJECT_CATALOG = [
   },
   {
     id: 'respondeya',
+    realId: '69b599c67e80030f60f34e94',
     name: 'Respondeya',
     color: '#0891b2',
     aliases: ['respondeya', '69b599c67e80030f60f34e94'],
     description: 'Canal complementari de leads i seguiment.',
-  },
-  {
-    id: 'grup_living',
-    name: 'Grup Living',
-    color: '#059669',
-    aliases: ['grup_living', '69e94fc647c84646190db3d1'],
-    description: 'Client Grup Living / Living Sitges.',
   },
 ];
 
@@ -29,9 +32,20 @@ const aliasIndex = PROJECT_CATALOG.reduce((acc, project) => {
   return acc;
 }, {});
 
+// Maps normalizedId → realId (UUID)
+const realIdIndex = PROJECT_CATALOG.reduce((acc, project) => {
+  acc[project.id] = project.realId;
+  return acc;
+}, {});
+
 export function normalizeProjectId(projectId) {
   if (!projectId) return 'enllac_digital';
   return aliasIndex[String(projectId).toLowerCase()] || String(projectId).toLowerCase();
+}
+
+export function getRealProjectId(projectId) {
+  const normalized = normalizeProjectId(projectId);
+  return realIdIndex[normalized] || projectId;
 }
 
 export function getProjectById(projectId) {

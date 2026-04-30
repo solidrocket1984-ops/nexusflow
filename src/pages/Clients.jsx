@@ -6,8 +6,8 @@ import { useClients } from '@/lib/useFinanceData';
 import { formatEuro } from '@/lib/finance';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { PROJECT_CATALOG, normalizeProjectId, getProjectName, getProjectColor } from '@/lib/projects';
 
-// Clients from base44 Lead entity (lifecycle_stage = customer)
 function useB44Clients() {
   const { data: leads = [] } = useQuery({
     queryKey: ['leads-customers-b44'],
@@ -40,41 +40,49 @@ export default function Clients() {
   const b44Clients = useB44Clients();
   const [search, setSearch] = useState('');
 
-  // Merge: prefer supabase, add b44 clients not present in supabase
+  // b44 clients not already in supabase
   const supLeadIds = new Set(supClients.map(c => c.lead_id));
   const b44Only = b44Clients.filter(c => !supLeadIds.has(c.id));
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const supFiltered = !q ? supClients : supClients.filter(c =>
-      [c.name, c.company, c.email, c.contact_name].filter(Boolean).some(v => v.toLowerCase().includes(q))
-    );
-    const b44Filtered = !q ? b44Only : b44Only.filter(c =>
-      [c.company, c.contact_name, c.name, c.email].filter(Boolean).some(v => v.toLowerCase().includes(q))
-    );
-    return { sup: supFiltered, b44: b44Filtered };
-  }, [supClients, b44Only, search]);
-
-  const totals = useMemo(() => {
-    const supMrr = supClients.reduce((a, c) => a + (Number(c.mrr_amount) || 0), 0);
-    const b44Mrr = b44Only.reduce((a, c) => a + (c.mrr || 0), 0);
-    const supBilled = supClients.reduce((a, c) => a + (Number(c.lifetime_billed) || 0), 0);
-    const b44Billed = b44Only.reduce((a, c) => a + (c.totalBilled || 0), 0);
-    const supOutstanding = supClients.reduce((a, c) => a + (Number(c.outstanding_balance) || 0), 0);
-    const b44Outstanding = b44Only.reduce((a, c) => a + (c.pendingAmount || 0), 0);
-    return { mrr: supMrr + b44Mrr, billed: supBilled + b44Billed, outstanding: supOutstanding + b44Outstanding };
+  const allClients = useMemo(() => {
+    const sup = supClients.map(c => ({ ...c, _source: 'sup', _normalizedProject: normalizeProjectId(c.project_id) }));
+    const b44 = b44Only.map(c => ({ ...c, _normalizedProject: normalizeProjectId(c.project_id) }));
+    return [...sup, ...b44];
   }, [supClients, b44Only]);
 
-  const isLoading = supLoading;
-  const totalCount = (filtered.sup?.length || 0) + (filtered.b44?.length || 0);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allClients;
+    return allClients.filter(c =>
+      [c.company, c.name, c.contact_name, c.email].filter(Boolean).some(v => v.toLowerCase().includes(q))
+    );
+  }, [allClients, search]);
+
+  // Group by project
+  const grouped = useMemo(() => {
+    const map = new Map();
+    PROJECT_CATALOG.forEach(p => map.set(p.id, []));
+    filtered.forEach(c => {
+      const key = c._normalizedProject;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(c);
+    });
+    // Only return groups with clients
+    return [...map.entries()].filter(([, clients]) => clients.length > 0);
+  }, [filtered]);
+
+  const totals = useMemo(() => {
+    const mrr = allClients.reduce((a, c) => a + (Number(c.mrr_amount) || Number(c.mrr) || 0), 0);
+    const billed = allClients.reduce((a, c) => a + (Number(c.lifetime_billed) || Number(c.totalBilled) || 0), 0);
+    const outstanding = allClients.reduce((a, c) => a + (Number(c.outstanding_balance) || Number(c.pendingAmount) || 0), 0);
+    return { mrr, billed, outstanding };
+  }, [allClients]);
 
   return (
     <div className="space-y-4">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
-          <p className="text-sm text-slate-500">Clients actius · {totalCount} registres</p>
-        </div>
+      <header>
+        <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
+        <p className="text-sm text-slate-500">{allClients.length} clients actius</p>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -90,72 +98,69 @@ export default function Clients() {
         </div>
       </div>
 
-      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {isLoading && <div className="p-8 text-center text-slate-400">Carregant...</div>}
-        {!isLoading && totalCount === 0 && (
-          <div className="p-8 text-center text-slate-400">
-            Encara no hi ha clients. Converteix un lead en client des del seu detall.
-          </div>
-        )}
-        {totalCount > 0 && (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr>
-                <th className="text-left p-3">Client</th>
-                <th className="text-left p-3">Contacte</th>
-                <th className="text-right p-3">MRR</th>
-                <th className="text-right p-3">Facturat</th>
-                <th className="text-right p-3">Pendent</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Supabase clients */}
-              {filtered.sup.map((c) => (
-                <tr key={`sup-${c.lead_id}`} className="border-t border-slate-100 hover:bg-slate-50/50">
-                  <td className="p-3">
-                    <p className="font-semibold text-slate-900">{c.company || c.name || c.contact_name}</p>
-                    <p className="text-xs text-slate-500">{c.city || c.zone || '-'}</p>
-                  </td>
-                  <td className="p-3">
-                    <p className="text-slate-800">{c.contact_name || '-'}</p>
-                    <p className="text-xs text-slate-500">{c.email || c.phone || ''}</p>
-                  </td>
-                  <td className="p-3 text-right font-medium">{formatEuro(c.mrr_amount)}</td>
-                  <td className="p-3 text-right">{formatEuro(c.lifetime_billed)}</td>
-                  <td className={`p-3 text-right font-medium ${Number(c.outstanding_balance) > 0 ? 'text-red-600' : 'text-slate-600'}`}>
-                    {formatEuro(c.outstanding_balance)}
-                  </td>
-                  <td className="p-3 text-right">
-                    <Link to={`/ClientDetail?id=${c.lead_id}`} className="text-xs text-blue-600 font-medium hover:underline">Obrir →</Link>
-                  </td>
+      {supLoading && <div className="p-8 text-center text-slate-400">Carregant...</div>}
+      {!supLoading && allClients.length === 0 && (
+        <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+          Encara no hi ha clients. Converteix un lead en client des del seu detall.
+        </div>
+      )}
+
+      {grouped.map(([projectKey, clients]) => {
+        const color = getProjectColor(projectKey);
+        const name = getProjectName(projectKey);
+        return (
+          <section key={projectKey} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100" style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+              <h2 className="text-sm font-semibold text-slate-700">{name}</h2>
+              <span className="text-xs text-slate-400">· {clients.length} client{clients.length !== 1 ? 's' : ''}</span>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="text-left p-3">Client</th>
+                  <th className="text-left p-3">Contacte</th>
+                  <th className="text-right p-3">MRR</th>
+                  <th className="text-right p-3">Facturat</th>
+                  <th className="text-right p-3">Pendent</th>
+                  <th></th>
                 </tr>
-              ))}
-              {/* Base44 entity clients */}
-              {filtered.b44.map((c) => (
-                <tr key={`b44-${c.id}`} className="border-t border-slate-100 hover:bg-slate-50/50 bg-emerald-50/30">
-                  <td className="p-3">
-                    <p className="font-semibold text-slate-900">{c.company || c.name || c.contact_name}</p>
-                    <p className="text-xs text-emerald-600">📁 {c.project || 'Lead actiu'}</p>
-                  </td>
-                  <td className="p-3">
-                    <p className="text-slate-800">{c.contact_name || c.name || '-'}</p>
-                    <p className="text-xs text-slate-500">{c.email || c.phone || ''}</p>
-                  </td>
-                  <td className="p-3 text-right font-medium text-emerald-700">{formatEuro(c.mrr)}</td>
-                  <td className="p-3 text-right">{formatEuro(c.totalBilled)}</td>
-                  <td className={`p-3 text-right font-medium ${c.pendingAmount > 0 ? 'text-red-600' : 'text-slate-600'}`}>
-                    {formatEuro(c.pendingAmount)}
-                  </td>
-                  <td className="p-3 text-right">
-                    <Link to={`/LeadDetail?id=${c.id}&tab=finance`} className="text-xs text-blue-600 font-medium hover:underline">Obrir →</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+              </thead>
+              <tbody>
+                {clients.map((c) => {
+                  const isB44 = c._source === 'b44';
+                  const displayName = c.company || c.name || c.contact_name || '-';
+                  const contactName = c.contact_name || (isB44 ? c.name : null) || '-';
+                  const email = c.email || '';
+                  const mrr = isB44 ? c.mrr : Number(c.mrr_amount) || 0;
+                  const billed = isB44 ? c.totalBilled : Number(c.lifetime_billed) || 0;
+                  const pending = isB44 ? c.pendingAmount : Number(c.outstanding_balance) || 0;
+                  const href = isB44 ? `/LeadDetail?id=${c.id}&tab=finance` : `/ClientDetail?id=${c.lead_id}`;
+                  return (
+                    <tr key={`${c._source}-${c.id || c.lead_id}`} className="border-t border-slate-100 hover:bg-slate-50/50">
+                      <td className="p-3">
+                        <p className="font-semibold text-slate-900">{displayName}</p>
+                      </td>
+                      <td className="p-3">
+                        <p className="text-slate-800">{contactName}</p>
+                        <p className="text-xs text-slate-400">{email}</p>
+                      </td>
+                      <td className="p-3 text-right font-medium text-emerald-700">{formatEuro(mrr)}</td>
+                      <td className="p-3 text-right">{formatEuro(billed)}</td>
+                      <td className={`p-3 text-right font-medium ${pending > 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                        {formatEuro(pending)}
+                      </td>
+                      <td className="p-3 text-right">
+                        <Link to={href} className="text-xs text-blue-600 font-medium hover:underline">Obrir →</Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        );
+      })}
     </div>
   );
 }

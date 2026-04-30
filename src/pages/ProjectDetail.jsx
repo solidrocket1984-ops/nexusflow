@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import LeadRow from '../components/leads/LeadRow';
 import TaskRow from '../components/tasks/TaskRow';
-import { normalizeProjectId } from '@/lib/projects';
+import { normalizeProjectId, getRealProjectId } from '@/lib/projects';
 
 function formatEuro(n) {
   return new Intl.NumberFormat('ca-ES', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0);
@@ -22,7 +22,9 @@ const proposalStatusLabels = { draft: 'Esborrany', sent: 'Enviada', accepted: 'A
 
 export default function ProjectDetail() {
   const urlParams = new URLSearchParams(window.location.search);
-  const projectId = urlParams.get('id');
+  const projectIdParam = urlParams.get('id');
+  // Support both UUID and slug — normalize to real UUID for DB queries
+  const projectId = getRealProjectId(projectIdParam) || projectIdParam;
 
   const { data: leads = [] } = useLeads();
   const { data: tasks = [] } = useTasks();
@@ -33,6 +35,9 @@ export default function ProjectDetail() {
     enabled: !!projectId,
     select: (data) => data?.[0] || null,
   });
+
+  // Normalize projectIdParam for lead filtering (handles slugs and UUIDs)
+  const normalizedParamId = normalizeProjectId(projectIdParam);
 
   const { data: invoices = [] } = useQuery({
     queryKey: ['project-invoices', projectId],
@@ -55,8 +60,11 @@ export default function ProjectDetail() {
     initialData: [],
   });
 
-  // Filter leads by project_id using normalizeProjectId for compatibility
-  const projectLeads = leads.filter(l => normalizeProjectId(l.project_id) === normalizeProjectId(projectId));
+  // Filter leads: match by normalized slug OR by real UUID
+  const projectLeads = leads.filter(l =>
+    normalizeProjectId(l.project_id) === normalizedParamId ||
+    l.project_id === projectId
+  );
   const projectTasks = tasks.filter(t => t.project_id === projectId);
 
   const today = format(new Date(), 'yyyy-MM-dd');
