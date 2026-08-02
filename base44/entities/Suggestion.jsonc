@@ -1,0 +1,60 @@
+{
+  "name": "Suggestion",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "lead_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "llamar",
+        "seguimiento",
+        "agendar_reunion",
+        "enviar_propuesta",
+        "follow_up",
+        "bloque_llamadas",
+        "reactivar_proyecto"
+      ],
+      "default": "seguimiento"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "alta",
+        "media",
+        "baja"
+      ],
+      "default": "media"
+    },
+    "cta": {
+      "type": "string"
+    },
+    "suggested_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "dismissed": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "project_id",
+    "type",
+    "reason"
+  ]
+}

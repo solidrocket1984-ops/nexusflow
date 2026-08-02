@@ -1,0 +1,43 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "completed"
+      ],
+      "default": "active"
+    },
+    "color": {
+      "type": "string",
+      "description": "Brand color hex for the project"
+    },
+    "data_source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "google_sheets",
+        "base44_external"
+      ],
+      "default": "manual"
+    },
+    "data_source_config": {
+      "type": "object",
+      "description": "Configuration for the data source connection"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

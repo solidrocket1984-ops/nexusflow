@@ -1,0 +1,85 @@
+{
+  "name": "RecurringPayment",
+  "properties": {
+    "amount": {
+      "description": "Importe mensual en \u20ac",
+      "type": "number"
+    },
+    "bank_account": {
+      "description": "IBAN de cobro",
+      "type": "string"
+    },
+    "billing_day": {
+      "description": "D\u00eda del mes en que se factura",
+      "type": "number"
+    },
+    "contract_ref": {
+      "description": "Referencia contrato",
+      "type": "string"
+    },
+    "description": {
+      "description": "Descripci\u00f3n del servicio",
+      "type": "string"
+    },
+    "end_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "frequency": {
+      "default": "monthly",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "annual"
+      ],
+      "type": "string"
+    },
+    "last_billed_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "lead_id": {
+      "description": "Lead/cliente relacionado",
+      "type": "string"
+    },
+    "next_billing_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "notes": {
+      "description": "Notas internas",
+      "type": "string"
+    },
+    "project_id": {
+      "description": "Proyecto relacionado",
+      "type": "string"
+    },
+    "start_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "status": {
+      "default": "active",
+      "enum": [
+        "active",
+        "paused",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "vat_pct": {
+      "default": 21,
+      "description": "IVA % aplicado",
+      "type": "number"
+    }
+  },
+  "required": [
+    "lead_id",
+    "project_id",
+    "description",
+    "amount",
+    "frequency",
+    "start_date"
+  ],
+  "type": "object"
+}

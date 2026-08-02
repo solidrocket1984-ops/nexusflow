@@ -1,0 +1,94 @@
+{
+  "name": "Invoice",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string",
+      "description": "N\u00famero de factura (e.g. F260001)"
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead/cliente relacionado"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Proyecto relacionado"
+    },
+    "contract_ref": {
+      "type": "string",
+      "description": "Referencia contrato (e.g. 2026-LS-002)"
+    },
+    "concept": {
+      "type": "string",
+      "description": "Concepto de la factura"
+    },
+    "issue_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "base_amount": {
+      "type": "number",
+      "description": "Base imponible en \u20ac"
+    },
+    "vat_pct": {
+      "type": "number",
+      "description": "IVA %",
+      "default": 21
+    },
+    "retention_pct": {
+      "type": "number",
+      "description": "Retenci\u00f3n IRPF %",
+      "default": 0
+    },
+    "total_amount": {
+      "type": "number",
+      "description": "Total a pagar en \u20ac"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "paid",
+        "overdue",
+        "cancelled"
+      ],
+      "default": "sent"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "transferencia",
+        "tarjeta",
+        "domiciliacion",
+        "efectivo"
+      ],
+      "default": "transferencia"
+    },
+    "bank_account": {
+      "type": "string",
+      "description": "IBAN para transferencia"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas internas"
+    }
+  },
+  "required": [
+    "number",
+    "lead_id",
+    "project_id",
+    "concept",
+    "issue_date",
+    "due_date",
+    "total_amount"
+  ]
+}
